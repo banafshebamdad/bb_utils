@@ -12,3 +12,11 @@ It is designed to provide small, reusable helper modules that simplify data hand
 
 ```bash
 pip install -e /path/to/bb_utils
+```
+
+---
+
+## Usage example
+```python
+from bb_utils import *
+```
