@@ -1,6 +1,6 @@
 # bb_utils
 
-`bb_utils` is a lightweight Python utility package developed to support **SP-SCore research and development**.  
+`bb_utils` is a lightweight Python utility package developed to support [SP-SCore](https://github.com/banafshebamdad/SP-SCore) research and development.  
 It is designed to provide small, reusable helper modules that simplify data handling and experimentation, and to grow incrementally as new needs arise.
 
 ---
