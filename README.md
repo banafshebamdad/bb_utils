@@ -87,8 +87,13 @@ Create a YAML config file (see `configs/incrowdvi_superpoint_labels.yaml`):
 ## Usage as Python Module
 
 ```python
-from bb_utils import generate_labels
+# Option 1: Import from main package
+from bb_utils import generate_labels, inspect_npz_file
 
 # Generate labels
 generate_labels('config.yaml')
+
+# Option 2: Import from submodules
+from bb_utils.label_generation import generate_labels
+from bb_utils.utils import inspect_npz_file
 ```

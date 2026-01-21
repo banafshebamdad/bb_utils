@@ -16,8 +16,8 @@ dependencies = [
 ]
 
 [project.scripts]
-inspect-npz = "bb_utils.inspect_npz:main"
-generate-superpoint-labels = "bb_utils.incrowdvi_superpoint_labels:main"
+inspect-npz = "bb_utils.utils.inspect_npz:main"
+generate-superpoint-labels = "bb_utils.label_generation.incrowdvi_superpoint_labels:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

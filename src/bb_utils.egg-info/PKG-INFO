@@ -5,3 +5,106 @@ Summary: Small utilities for SP-SCore development
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 Requires-Dist: numpy>=1.23
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: tqdm>=4.65.0
+
+# bb_utils
+
+`bb_utils` is a lightweight Python utility package developed to support [SP-SCore](https://github.com/banafshebamdad/SP-SCore) research and development.  
+It provides tools for dataset processing, label generation, and inspection utilities for SuperPoint training.
+
+---
+
+## Installation
+
+### Local editable install
+
+```bash
+cd /path/to/bb_utils
+pip install -e .
+```
+
+This will install the package and all dependencies.
+
+---
+
+## Tools
+
+### NPZ Inspector
+
+Inspect the contents of NumPy `.npz` files with detailed statistics:
+
+```bash
+# Using console script
+inspect-npz path/to/file.npz
+
+# Or directly
+python -m bb_utils.inspect_npz path/to/file.npz
+```
+
+**Features:**
+- Data type, shape, and dimensionality
+- Memory usage in human-readable format
+- Per-column statistics for 2D arrays
+- Min/max/mean values
+- Non-finite value detection (NaN, Inf)
+- Support for boolean, string, and object arrays
+
+---
+
+### InCrowd-VI Label Generator
+
+Generate SuperPoint training labels from InCrowd-VI dataset:
+
+```bash
+# Using console script
+generate-superpoint-labels configs/incrowdvi_superpoint_labels.yaml
+
+# Or directly
+python -m bb_utils.incrowdvi_superpoint_labels config.yaml
+
+# With verbose logging
+generate-superpoint-labels configs/incrowdvi_superpoint_labels.yaml --verbose
+```
+
+**Input Data:**
+- `semidense_observations.csv.gz` - 2D keypoint observations
+- `semidense_points.csv.gz` - 3D points with uncertainty estimates
+
+**Output Format:**
+- One `.npz` file per frame
+- Key: `'pts'`
+- Shape: `(N, 3)` where columns are `[x, y, confidence]`
+- Compatible with SuperPoint training pipeline
+
+**Configuration:**
+
+Create a YAML config file (see `configs/incrowdvi_superpoint_labels.yaml`):
+
+**Features:**
+- Memory-efficient chunked processing
+- Configurable confidence computation
+- Per-frame keypoint filtering
+- Automatic report generation with statistics
+- Progress tracking with tqdm
+
+**Confidence Methods:**
+- `inverse_normalized`: `confidence = 1 - (inv_dist_std / max_inv_dist_std)`
+- `exponential`: `confidence = exp(-scale * inv_dist_std)`
+
+---
+
+## Usage as Python Module
+
+```python
+# Option 1: Import from main package
+from bb_utils import generate_labels, inspect_npz_file
+
+# Generate labels
+generate_labels('config.yaml')
+
+# Option 2: Import from submodules
+from bb_utils.label_generation import generate_labels
+from bb_utils.utils import inspect_npz_file
+```

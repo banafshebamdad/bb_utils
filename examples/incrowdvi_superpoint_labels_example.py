@@ -10,7 +10,7 @@ Date: January 21, 2026
 """
 
 from pathlib import Path
-from bb_utils.incrowdvi_superpoint_labels import (
+from bb_utils.label_generation.incrowdvi_superpoint_labels import (
     generate_labels,
     compute_confidence,
     filter_and_sort_keypoints,

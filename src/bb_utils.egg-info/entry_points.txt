@@ -1,0 +1,3 @@
+[console_scripts]
+generate-superpoint-labels = bb_utils.label_generation.incrowdvi_superpoint_labels:main
+inspect-npz = bb_utils.utils.inspect_npz:main

@@ -1,20 +1,22 @@
+# 
+# Author: Banafshe Bamdad + GitHub Copilot (Claude Sonnet 4.5)
+# Date: January 21, 2026 16:36 CET
+#
+
 #!/usr/bin/env python3
 """
 InCrowd-VI SuperPoint Label Generator
 
-This script generates **SuperPoint-compatible** training labels from the InCrowd-VI dataset's
-semi-dense SLAM observations. It processes multi-view visual-inertial SLAM data and outputs
+This script generates SuperPoint-compatible training labels from the InCrowd-VI dataset's
+semi-dense SLAM observations. It processes multi-view SLAM data and outputs
 per-frame keypoint labels in the format expected by the SuperPoint training pipeline.
-
-**IMPORTANT**: This script is specifically designed for SuperPoint training labels.
-              For SP-SCore label generation, use incrowdvi_spscore_labels.py (to be developed).
 
 ================================================================================
 PURPOSE
 ================================================================================
 Convert InCrowd-VI semi-dense 3D point observations into 2D keypoint labels suitable
 for training SuperPoint detectors. Each output file contains keypoint pixel coordinates
-and confidence scores derived from the SLAM system's uncertainty estimates.
+and confidence scores derived from the Meta SLAM system's uncertainty estimates.
 
 ================================================================================
 INPUT DATA STRUCTURE
@@ -59,56 +61,6 @@ Output location:
     [output_labels_root]/[frame_filename_without_ext].npz
 
 ================================================================================
-CONFIG FILE (YAML)
-================================================================================
-Required fields:
-
-data:
-    mps_root: "/path/to/incrowdvi/mps_data"
-    frames_root: "/path/to/incrowdvi/frames"
-    output_labels_root: "/path/to/output/labels"
-    
-    camera_serials:
-        left: "0072510f1b2107010500001910150001"
-        right: "0072510f1b2107010800001127080001"
-
-model:
-    detection_threshold: 0.015  # minimum confidence to keep keypoint
-    top_k: 1000                  # maximum keypoints per frame
-    
-    confidence:
-        method: "inverse_normalized"  # confidence computation method
-        params:
-            # Add method-specific parameters here if needed
-
-output:
-    generate_report: true
-    report_file: "label_generation_report.txt"
-
-================================================================================
-CONFIDENCE COMPUTATION
-================================================================================
-The confidence score is derived from the SLAM uncertainty estimate (inv_dist_std).
-Higher inv_dist_std indicates higher uncertainty, thus lower confidence.
-
-Current implementation uses normalized inverse approach, but the design allows
-for easy replacement with alternative formulas.
-
-================================================================================
-ASSUMPTIONS
-================================================================================
-1. Timestamps in CSV files are in microseconds
-2. Timestamps in frame filenames are in microseconds (same as CSV)
-3. Camera serial mapping:
-   - Right camera: 0072510f1b2107010800001127080001 → 'R' in filename
-   - Left camera:  0072510f1b2107010500001910150001 → 'L' in filename
-4. Frame filename format: [sequence]_[L/R]_[timestamp_us].png
-5. Both CSV files use 'uid' as the linking key
-6. Coordinates (u, v) in observations correspond to (x, y) pixel positions
-7. Frames are directly in frames_root (not nested by scene)
-8. Output labels are directly in output_labels_root (not nested by scene)
-
-================================================================================
 USAGE
 ================================================================================
 Command line:
@@ -126,10 +78,6 @@ PERFORMANCE
 - Memory-efficient groupby operations
 - Progress tracking via tqdm
 
-================================================================================
-Author: Banafshe Bamdad + GitHub Copilot (Claude Sonnet 4.5)
-Date: January 21, 2026
-================================================================================
 """
 
 import argparse
@@ -420,6 +368,10 @@ def process_sequence(mps_sequence_dir: Path,
     top_k = config['model']['top_k']
     confidence_method = config['model']['confidence']['method']
     confidence_params = config['model']['confidence'].get('params', {})
+    
+    # Ensure confidence_params is a dict (handle YAML parsing issues)
+    if not isinstance(confidence_params, dict):
+        confidence_params = {}
     
     # Read points to get uncertainty data
     logging.info(f"Loading points from {points_file.name}")

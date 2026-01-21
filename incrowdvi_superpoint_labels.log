@@ -1,0 +1,10 @@
+nohup: ignoring input
+[2026-01-21 17:01:58 INFO] ================================================================================
+[2026-01-21 17:01:58 INFO] Processing scene: Andreasstrasse_15
+[2026-01-21 17:01:58 INFO] ================================================================================
+[2026-01-21 17:01:59 INFO] Discovered 254853 frames in /home/ubuntu/frames/train
+[2026-01-21 17:01:59 INFO] Processing sequence: AND_Lib_floor5_1
+[2026-01-21 17:01:59 WARNING] No matching frames for sequence 'AND_Lib_floor5_1'
+[2026-01-21 17:01:59 INFO] Processing sequence: AND_Lib_floor5_2_narrow_ail
+[2026-01-21 17:01:59 INFO] Loading points from semidense_points.csv.gz
+[2026-01-21 17:02:01 INFO] Processing observations from semidense_observations.csv.gz

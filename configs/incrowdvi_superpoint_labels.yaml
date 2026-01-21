@@ -50,10 +50,9 @@ model:
     method: "inverse_normalized"
     
     # Method-specific parameters
-    params:
-      # For 'exponential' method only:
+    params: {}  # Empty dict for inverse_normalized
+      # For 'exponential' method, add:
       # scale: 1.0
-      pass
 
 # ============================================================================
 # OUTPUT CONFIGURATION
