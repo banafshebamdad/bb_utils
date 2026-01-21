@@ -88,7 +88,7 @@ This is identical to the output of `export_detector_homoAdapt` from the original
 ┌─────────────────────────────────────────┐
 │ InCrowd-VI Dataset                      │
 │ ├── semidense_observations.csv.gz       │
-│ │   (uid, timestamp, camera, u, v)      │
+│ │   (uid, timestamp_us, camera, u, v)  │
 │ └── semidense_points.csv.gz             │
 │     (uid, 3D pos, inv_dist_std, ...)    │
 └─────────────────────────────────────────┘
@@ -100,16 +100,18 @@ This is identical to the output of `export_detector_homoAdapt` from the original
 │ 2. Create uid → confidence mapping      │
 │ 3. Read observations in chunks          │
 │ 4. Join with confidence                 │
-│ 5. Group by frame                       │
-│ 6. Filter & sort keypoints              │
+│ 5. Build frame_id (L/R_timestamp_us)   │
+│ 6. Group by frame                       │
+│ 7. Filter & sort keypoints              │
 └─────────────────────────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────┐
 │ Output Labels (.npz files)               │
-│ ├── scene1/                             │
-│ │   ├── sequence1_L_timestamp.npz      │
-│ │   └── sequence1_R_timestamp.npz      │
+│ Directly in output_labels_root:         │
+│ ├── sequence1_L_timestamp.npz           │
+│ ├── sequence1_R_timestamp.npz           │
+│ ├── sequence2_L_timestamp.npz           │
 │ └── label_generation_report.txt        │
 └─────────────────────────────────────────┘
 ```
@@ -155,7 +157,7 @@ generate-superpoint-labels my_config.yaml --verbose
 ### Inspect Results
 ```bash
 # Inspect a generated label file
-inspect-npz output/labels/scene/frame.npz
+inspect-npz output/labels/sequence_L_timestamp.npz
 
 # Check the report
 cat output/labels/label_generation_report.txt

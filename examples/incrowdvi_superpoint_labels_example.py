@@ -93,7 +93,7 @@ def example_inspect_generated_labels():
     """Example: inspect a generated label file."""
     # This assumes you've run label generation
     # Replace with actual path to a generated file
-    label_file = Path("output/labels/scene_name/frame_name.npz")
+    label_file = Path("output/labels/sequence_L_timestamp.npz")
     
     if not label_file.exists():
         print(f"\nLabel file not found: {label_file}")

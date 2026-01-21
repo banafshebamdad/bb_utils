@@ -76,25 +76,26 @@ mps_root/
 ```
 
 ### Input (Frames):
+Frames are directly in frames_root (not nested by scene):
 ```
 frames_root/
-├── scene1/
-│   ├── sequence1_L_1234567890000.png
-│   ├── sequence1_R_1234567890000.png
-│   └── ...
-└── scene2/
-    └── ...
+├── sequence1_L_1234567890.png
+├── sequence1_R_1234567890.png
+├── sequence2_L_1234567891.png
+├── sequence2_R_1234567891.png
+└── ...
 ```
+Note: Timestamps in filenames are in microseconds (same as CSV).
 
 ### Output (Labels):
+Labels are directly in output_labels_root (not nested by scene):
 ```
 output_labels_root/
-├── scene1/
-│   ├── sequence1_L_1234567890000.npz
-│   ├── sequence1_R_1234567890000.npz
-│   └── ...
-├── scene2/
-│   └── ...
+├── sequence1_L_1234567890.npz
+├── sequence1_R_1234567890.npz
+├── sequence2_L_1234567891.npz
+├── sequence2_R_1234567891.npz
+├── ...
 └── label_generation_report.txt
 ```
 
@@ -135,8 +136,9 @@ Keypoints per frame (global):
 
 ### No frames found
 - Check that `frames_root` and `mps_root` paths are correct
-- Verify frame filename format matches: `[sequence]_[L/R]_[timestamp_ns].png`
+- Verify frame filename format matches: `[sequence]_[L/R]_[timestamp_us].png`
 - Ensure camera serials in config match your dataset
+- Remember: frames are directly in frames_root, not in scene subdirectories
 
 ### Low keypoint counts
 - Lower `detection_threshold` (e.g., 0.01 or 0.005)

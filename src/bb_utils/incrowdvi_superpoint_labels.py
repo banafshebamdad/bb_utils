@@ -39,8 +39,8 @@ Dataset structure:
         └── semidense_points.csv.gz
 
 Frame images are stored separately:
-    [frames_root]/[scene_name]/
-        └── [sequence_name]_[L/R]_[timestamp_ns].png
+    [frames_root]/
+        └── [sequence_name]_[L/R]_[timestamp_us].png
 
 ================================================================================
 OUTPUT FORMAT
@@ -56,7 +56,7 @@ Where:
     - N: number of keypoints (≤ top_k, filtered by confidence_threshold)
 
 Output location:
-    [output_labels_root]/[scene_name]/[frame_filename_without_ext].npz
+    [output_labels_root]/[frame_filename_without_ext].npz
 
 ================================================================================
 CONFIG FILE (YAML)
@@ -71,10 +71,6 @@ data:
     camera_serials:
         left: "0072510f1b2107010500001910150001"
         right: "0072510f1b2107010800001127080001"
-    
-    # Timestamp conversion: frame filenames use nanoseconds, CSV uses microseconds
-    timestamp_unit_csv: "microseconds"
-    timestamp_unit_frame: "nanoseconds"
 
 model:
     detection_threshold: 0.015  # minimum confidence to keep keypoint
@@ -102,22 +98,24 @@ for easy replacement with alternative formulas.
 ASSUMPTIONS
 ================================================================================
 1. Timestamps in CSV files are in microseconds
-2. Timestamps in frame filenames are in nanoseconds (multiply CSV by 1000)
+2. Timestamps in frame filenames are in microseconds (same as CSV)
 3. Camera serial mapping:
    - Right camera: 0072510f1b2107010800001127080001 → 'R' in filename
    - Left camera:  0072510f1b2107010500001910150001 → 'L' in filename
-4. Frame filename format: [sequence]_[L/R]_[timestamp_ns].png
+4. Frame filename format: [sequence]_[L/R]_[timestamp_us].png
 5. Both CSV files use 'uid' as the linking key
 6. Coordinates (u, v) in observations correspond to (x, y) pixel positions
+7. Frames are directly in frames_root (not nested by scene)
+8. Output labels are directly in output_labels_root (not nested by scene)
 
 ================================================================================
 USAGE
 ================================================================================
 Command line:
-    python incrowdvi_label_generator.py config.yaml
+    python incrowdvi_superpoint_labels.py config.yaml
 
 As a module:
-    from bb_utils.incrowdvi_label_generator import generate_labels
+    from bb_utils.incrowdvi_superpoint_labels import generate_labels
     generate_labels('config.yaml')
 
 ================================================================================
@@ -271,18 +269,13 @@ def get_camera_indicator(camera_serial: str, camera_serials: Dict[str, str]) -> 
         raise ValueError(f"Unknown camera serial: {camera_serial}")
 
 
-def timestamp_us_to_ns(timestamp_us: int) -> int:
-    """Convert microsecond timestamp to nanoseconds."""
-    return timestamp_us * 1000
-
-
 def build_frame_id(timestamp_us: int, camera_serial: str, 
                    camera_serials: Dict[str, str]) -> str:
     """
     Build frame identifier for matching with frame filenames.
     
     Returns a string that can be matched against frame filename patterns.
-    Format: [L/R]_[timestamp_ns]
+    Format: [L/R]_[timestamp_us]
     
     Parameters:
     -----------
@@ -296,43 +289,41 @@ def build_frame_id(timestamp_us: int, camera_serial: str,
     Returns:
     --------
     frame_id : str
-        Frame identifier (e.g., "L_1234567890000")
+        Frame identifier (e.g., "L_1234567890")
     """
     cam_indicator = get_camera_indicator(camera_serial, camera_serials)
-    timestamp_ns = timestamp_us_to_ns(timestamp_us)
-    return f"{cam_indicator}_{timestamp_ns}"
+    return f"{cam_indicator}_{timestamp_us}"
 
 
 # ============================================================================
 # FRAME DISCOVERY
 # ============================================================================
 
-def discover_frames(frames_root: Path, scene_name: str) -> Dict[str, Path]:
+def discover_frames(frames_root: Path) -> Dict[str, Path]:
     """
-    Discover all frame files for a scene and build lookup dictionary.
+    Discover all frame files and build lookup dictionary.
+    
+    Frames are expected to be directly in frames_root with filenames:
+    [sequence]_[L/R]_[timestamp_us].png
     
     Parameters:
     -----------
     frames_root : Path
         Root directory containing frame images
-    scene_name : str
-        Scene/sequence name
     
     Returns:
     --------
     frame_map : dict
         Mapping from frame_id to file path
-        frame_id format: "[L/R]_[timestamp_ns]"
+        frame_id format: "[L/R]_[timestamp_us]"
     """
-    scene_frames_dir = frames_root / scene_name
-    
-    if not scene_frames_dir.exists():
-        logging.warning(f"Frames directory not found: {scene_frames_dir}")
+    if not frames_root.exists():
+        logging.warning(f"Frames directory not found: {frames_root}")
         return {}
     
     frame_map = {}
-    for frame_file in scene_frames_dir.glob("*.png"):
-        # Parse filename: [sequence]_[L/R]_[timestamp_ns].png
+    for frame_file in frames_root.glob("*.png"):
+        # Parse filename: [sequence]_[L/R]_[timestamp_us].png
         parts = frame_file.stem.split('_')
         if len(parts) < 3:
             logging.warning(f"Unexpected frame filename format: {frame_file.name}")
@@ -340,12 +331,12 @@ def discover_frames(frames_root: Path, scene_name: str) -> Dict[str, Path]:
         
         # Extract camera indicator and timestamp
         cam_indicator = parts[-2]  # L or R
-        timestamp_ns = parts[-1]
+        timestamp_us = parts[-1]
         
-        frame_id = f"{cam_indicator}_{timestamp_ns}"
+        frame_id = f"{cam_indicator}_{timestamp_us}"
         frame_map[frame_id] = frame_file
     
-    logging.info(f"Discovered {len(frame_map)} frames for scene '{scene_name}'")
+    logging.info(f"Discovered {len(frame_map)} frames in {frames_root}")
     return frame_map
 
 
@@ -483,8 +474,7 @@ def process_sequence(mps_sequence_dir: Path,
                 frame_keypoints[frame_id].extend(keypoints)
     
     # Second pass: save labels for each frame
-    output_scene_dir = output_root / scene_name
-    output_scene_dir.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
     
     stats = {}
     for frame_id, keypoints_list in tqdm(frame_keypoints.items(), 
@@ -502,7 +492,7 @@ def process_sequence(mps_sequence_dir: Path,
         
         # Get frame path to determine output filename
         frame_path = frame_map[frame_id]
-        output_file = output_scene_dir / f"{frame_path.stem}.npz"
+        output_file = output_root / f"{frame_path.stem}.npz"
         
         # Save as compressed npz
         np.savez_compressed(output_file, pts=pts)
@@ -553,12 +543,13 @@ def generate_labels(config_path: str):
         logging.info(f"Processing scene: {scene_name}")
         logging.info(f"=" * 80)
         
-        # Discover frames for this scene
-        frame_map = discover_frames(frames_root, scene_name)
+        # Discover frames (they are directly in frames_root, not nested by scene)
+        if 'frame_map' not in locals():
+            frame_map = discover_frames(frames_root)
         
         if not frame_map:
-            logging.warning(f"No frames found for scene '{scene_name}', skipping")
-            continue
+            logging.warning(f"No frames found in {frames_root}, skipping")
+            break  # No point in processing other scenes if no frames exist
         
         # Process each MPS sequence in this scene
         for mps_seq_dir in sorted(scene_dir.iterdir()):

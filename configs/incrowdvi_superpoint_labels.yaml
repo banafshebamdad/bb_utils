@@ -3,37 +3,30 @@
 # This configuration file specifies all parameters for generating SuperPoint
 # training labels from the InCrowd-VI dataset.
 #
-# NOTE: This generates labels specifically for SuperPoint training.
-#       For SP-SCore labels, use incrowdvi_spscore_labels.yaml (to be created).
-#
 # Author: Banafshe Bamdad
-# Date: January 21, 2026
+# Date: January 21, 2026 16:04:00 CET
 
 # ============================================================================
 # DATA PATHS
 # ============================================================================
 data:
-  # Root directory containing MPS sequence data
+  # Root directory containing .csv.gz files
   # Structure: [mps_root]/[scene_name]/mps_[sequence_name]_vrs/
-  mps_root: "/path/to/incrowdvi/mps_data"
+  mps_root: "/home/ubuntu/InCrowd-VI_points_observations"
   
   # Root directory containing frame images
-  # Structure: [frames_root]/[scene_name]/[sequence]_[L/R]_[timestamp_ns].png
-  frames_root: "/path/to/incrowdvi/frames"
+  # Structure: [frames_root]/[sequence]_[L/R]_[timestamp_us].png
+  frames_root: "/home/ubuntu/frames/train"
   
   # Output directory for generated labels
-  # Structure: [output_labels_root]/[scene_name]/[frame_name].npz
-  output_labels_root: "/path/to/output/labels"
+  # Structure: [output_labels_root]/[frame_name].npz
+  output_labels_root: "/home/ubuntu/pytorch-superpoint/datasets/incrowdvi/superpoint_labels/train"
   
   # Camera serial number mappings
   # Used to identify left/right camera from CSV data
   camera_serials:
     left: "0072510f1b2107010500001910150001"
     right: "0072510f1b2107010800001127080001"
-  
-  # Timestamp units (for documentation - conversion is hardcoded)
-  timestamp_unit_csv: "microseconds"
-  timestamp_unit_frame: "nanoseconds"
 
 # ============================================================================
 # MODEL PARAMETERS
@@ -41,14 +34,11 @@ data:
 model:
   # Minimum confidence threshold to keep a keypoint
   # Keypoints with confidence < detection_threshold are filtered out
-  # Range: [0.0, 1.0]
-  # Typical values: 0.015 - 0.05
   detection_threshold: 0.015
   
   # Maximum number of keypoints to keep per frame
   # Keypoints are sorted by confidence and top-k are selected
   # Set to 0 or null to keep all keypoints above threshold
-  # Typical values: 500 - 1000
   top_k: 1000
   
   # Confidence computation configuration
