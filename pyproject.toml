@@ -8,7 +8,16 @@ version = "0.1.0"
 description = "Small utilities for SP-SCore development"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = ["numpy>=1.23"]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5.0",
+    "PyYAML>=6.0",
+    "tqdm>=4.65.0"
+]
+
+[project.scripts]
+inspect-npz = "bb_utils.inspect_npz:main"
+generate-superpoint-labels = "bb_utils.incrowdvi_superpoint_labels:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
