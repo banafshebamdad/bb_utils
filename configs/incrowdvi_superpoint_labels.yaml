@@ -6,6 +6,8 @@
 # Author: Banafshe Bamdad
 # Date: January 21, 2026 16:04:00 CET
 
+# incrowdvi_superpoint_labels.yaml
+
 # ============================================================================
 # DATA PATHS
 # ============================================================================
@@ -16,11 +18,12 @@ data:
   
   # Root directory containing frame images
   # Structure: [frames_root]/[sequence]_[L/R]_[timestamp_us].png
-  frames_root: "/home/ubuntu/frames/train"
+  # frames_root: "/home/ubuntu/frames/train"
+  frames_root: "/home/ubuntu/frames/val"
   
   # Output directory for generated labels
   # Structure: [output_labels_root]/[frame_name].npz
-  output_labels_root: "/home/ubuntu/pytorch-superpoint/datasets/incrowdvi/superpoint_labels/train"
+  output_labels_root: "/home/ubuntu/pytorch-superpoint/datasets/incrowdvi/superpoint_labels/val"
   
   # Camera serial number mappings
   # Used to identify left/right camera from CSV data

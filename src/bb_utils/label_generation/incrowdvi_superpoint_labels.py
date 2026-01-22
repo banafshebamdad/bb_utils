@@ -70,6 +70,21 @@ As a module:
     from bb_utils.incrowdvi_superpoint_labels import generate_labels
     generate_labels('config.yaml')
 
+# my commands
+---
+conda deactivate
+conda activate pytorch-superpoint
+cd /home/ubuntu/bb_utils
+pip install -e .
+
+# train labels generation
+nohup python src/bb_utils/label_generation/incrowdvi_superpoint_labels.py configs/incrowdvi_superpoint_labels.yaml --verbose > incrowdvi_superpoint_labels.log 2>&1 &
+
+# val labels generation
+Update frames_root and output_labels_root in incrowdvi_superpoint_labels.yaml to point to the validation frames and labels.
+nohup python src/bb_utils/label_generation/incrowdvi_superpoint_labels.py configs/incrowdvi_superpoint_labels.yaml --verbose > incrowdvi_superpoint_labels_val.log 2>&1 &
+---
+
 ================================================================================
 PERFORMANCE
 ================================================================================
@@ -353,7 +368,9 @@ def process_sequence(mps_sequence_dir: Path,
     Returns:
     --------
     stats : dict
-        Statistics about processed frames
+        Dictionary with two keys:
+        - 'raw': dict mapping frame_id to raw keypoint count (before top-k)
+        - 'filtered': dict mapping frame_id to filtered keypoint count (after top-k)
     """
     obs_file = mps_sequence_dir / "semidense_observations.csv.gz"
     points_file = mps_sequence_dir / "semidense_points.csv.gz"
@@ -428,18 +445,22 @@ def process_sequence(mps_sequence_dir: Path,
     # Second pass: save labels for each frame
     output_root.mkdir(parents=True, exist_ok=True)
     
-    stats = {}
+    stats_raw = {}
+    stats_filtered = {}
     for frame_id, keypoints_list in tqdm(frame_keypoints.items(), 
                                          desc=f"Saving labels ({sequence_name})"):
         # Convert to numpy array
         pts = np.array(keypoints_list, dtype=np.float64)
+        
+        # Track raw count (before filtering)
+        stats_raw[frame_id] = len(pts)
         
         # Filter and sort
         pts = filter_and_sort_keypoints(pts, confidence_threshold, top_k)
         
         if len(pts) == 0:
             logging.debug(f"No keypoints after filtering for frame {frame_id}")
-            stats[frame_id] = 0
+            stats_filtered[frame_id] = 0
             continue
         
         # Get frame path to determine output filename
@@ -448,10 +469,10 @@ def process_sequence(mps_sequence_dir: Path,
         
         # Save as compressed npz
         np.savez_compressed(output_file, pts=pts)
-        stats[frame_id] = len(pts)
+        stats_filtered[frame_id] = len(pts)
     
-    logging.info(f"Saved {len(stats)} label files for sequence '{sequence_name}'")
-    return stats
+    logging.info(f"Saved {len(stats_filtered)} label files for sequence '{sequence_name}'")
+    return {'raw': stats_raw, 'filtered': stats_filtered}
 
 
 # ============================================================================
@@ -569,35 +590,48 @@ def generate_report(all_stats: Dict[str, Dict[str, int]],
         f.write("\n")
         
         total_frames = 0
-        all_counts = []
+        all_raw_counts = []
+        all_filtered_counts = []
         
         for seq_id, stats in sorted(all_stats.items()):
-            if not stats:
+            if not stats or not stats.get('raw'):
                 continue
             
-            counts = list(stats.values())
-            total_frames += len(counts)
-            all_counts.extend(counts)
+            raw_counts = list(stats['raw'].values())
+            filtered_counts = list(stats['filtered'].values())
+            total_frames += len(raw_counts)
+            all_raw_counts.extend(raw_counts)
+            all_filtered_counts.extend(filtered_counts)
             
             f.write(f"Sequence: {seq_id}\n")
-            f.write(f"  Frames processed: {len(counts)}\n")
-            f.write(f"  Keypoints per frame:\n")
-            f.write(f"    Min:  {min(counts)}\n")
-            f.write(f"    Max:  {max(counts)}\n")
-            f.write(f"    Mean: {np.mean(counts):.2f}\n")
-            f.write(f"    Std:  {np.std(counts):.2f}\n")
+            f.write(f"  Frames processed: {len(raw_counts)}\n")
+            f.write(f"  Keypoints per frame (raw, before top-k):\n")
+            f.write(f"    Min:  {min(raw_counts)}\n")
+            f.write(f"    Max:  {max(raw_counts)}\n")
+            f.write(f"    Mean: {np.mean(raw_counts):.2f}\n")
+            f.write(f"    Std:  {np.std(raw_counts):.2f}\n")
+            f.write(f"  Keypoints per frame (filtered, after top-k={config['model']['top_k']}):\n")
+            f.write(f"    Min:  {min(filtered_counts)}\n")
+            f.write(f"    Max:  {max(filtered_counts)}\n")
+            f.write(f"    Mean: {np.mean(filtered_counts):.2f}\n")
+            f.write(f"    Std:  {np.std(filtered_counts):.2f}\n")
             f.write("\n")
         
         f.write("=" * 80 + "\n")
         f.write("Global Statistics\n")
         f.write("=" * 80 + "\n")
         f.write(f"Total frames: {total_frames}\n")
-        if all_counts:
-            f.write(f"Keypoints per frame (global):\n")
-            f.write(f"  Min:  {min(all_counts)}\n")
-            f.write(f"  Max:  {max(all_counts)}\n")
-            f.write(f"  Mean: {np.mean(all_counts):.2f}\n")
-            f.write(f"  Std:  {np.std(all_counts):.2f}\n")
+        if all_raw_counts:
+            f.write(f"Keypoints per frame (raw, before top-k):\n")
+            f.write(f"  Min:  {min(all_raw_counts)}\n")
+            f.write(f"  Max:  {max(all_raw_counts)}\n")
+            f.write(f"  Mean: {np.mean(all_raw_counts):.2f}\n")
+            f.write(f"  Std:  {np.std(all_raw_counts):.2f}\n")
+            f.write(f"Keypoints per frame (filtered, after top-k={config['model']['top_k']}):\n")
+            f.write(f"  Min:  {min(all_filtered_counts)}\n")
+            f.write(f"  Max:  {max(all_filtered_counts)}\n")
+            f.write(f"  Mean: {np.mean(all_filtered_counts):.2f}\n")
+            f.write(f"  Std:  {np.std(all_filtered_counts):.2f}\n")
         
         f.write("\n" + "=" * 80 + "\n")
     
