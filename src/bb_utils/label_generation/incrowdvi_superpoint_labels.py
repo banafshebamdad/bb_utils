@@ -2,6 +2,8 @@
 # Author: Banafshe Bamdad + GitHub Copilot (Claude Sonnet 4.5)
 # Date: January 21, 2026 16:36 CET
 #
+# incrowdvi_superpoint_labels.py
+# 
 
 #!/usr/bin/env python3
 """
