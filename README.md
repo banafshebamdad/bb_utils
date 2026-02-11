@@ -118,6 +118,9 @@ bb-organize-3d-obs \
 ```
 
 **Input Structure:**
+
+This structure is based on data created from the [InCrowd-VI](https://github.com/banafshebamdad/InCrowd-VI) dataset:
+
 ```
 ROOT/
 ├── Scene1/
@@ -131,6 +134,9 @@ ROOT/
 ```
 
 **Split CSV Format:**
+
+A sample split CSV file is provided in [configs/split_crowd_density_with_frames.csv](configs/split_crowd_density_with_frames.csv).
+
 ```csv
 scene,sequence,mps,density,frame_count,split
 Andreasstrasse_15,AND_Lib_floor5_1,mps_AND_Lib_floor5_1_vrs,Low,1607,val
