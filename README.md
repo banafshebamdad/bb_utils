@@ -42,7 +42,7 @@ python -m bb_utils.inspect_npz path/to/file.npz
 
 ---
 
-### InCrowd-VI Label Generator
+### InCrowd-VI Label Generator for Superpoint Training
 
 Generate SuperPoint training labels from InCrowd-VI dataset:
 
@@ -137,11 +137,6 @@ ROOT/
 
 A sample split CSV file is provided in [configs/split_crowd_density_with_frames.csv](configs/split_crowd_density_with_frames.csv).
 
-```csv
-scene,sequence,mps,density,frame_count,split
-Andreasstrasse_15,AND_Lib_floor5_1,mps_AND_Lib_floor5_1_vrs,Low,1607,val
-IMS_Labs,IMS_TE21_LEA_lab,mps_IMS_TE21_LEA_lab_vrs,NO_Density,2510,train
-```
 
 **Output Structure:**
 ```
