@@ -18,6 +18,7 @@ dependencies = [
 [project.scripts]
 inspect-npz = "bb_utils.utils.inspect_npz:main"
 generate-superpoint-labels = "bb_utils.label_generation.incrowdvi_superpoint_labels:main"
+bb-organize-3d-obs = "bb_utils.data_preparation.organize_3d_observations:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

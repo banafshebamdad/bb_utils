@@ -95,16 +95,106 @@ Create a YAML config file (see `configs/incrowdvi_superpoint_labels.yaml`):
 
 ---
 
+### 3D Observation Organizer
+
+Organize 3D observation data (semidense points and observations) into train/val/test directories based on a split CSV file:
+
+```bash
+# Basic usage
+bb-organize-3d-obs \
+  --data-root /path/to/ROOT \
+  --split-csv split_crowd_density_with_frames.csv \
+  --output-dir /path/to/output
+
+# Preview operations without copying (dry run)
+bb-organize-3d-obs \
+  --data-root /path/to/ROOT \
+  --split-csv split.csv \
+  --output-dir /path/to/output \
+  --dry-run
+
+# Create symlinks instead of copying files (saves disk space)
+bb-organize-3d-obs \
+  --data-root /path/to/ROOT \
+  --split-csv split.csv \
+  --output-dir /path/to/output \
+  --symlink
+
+# Verbose output
+bb-organize-3d-obs \
+  --data-root /path/to/ROOT \
+  --split-csv split.csv \
+  --output-dir /path/to/output \
+  --verbose
+```
+
+**Input Structure:**
+```
+ROOT/
+├── Scene1/
+│   └── mps_sequence_name_vrs/
+│       ├── semidense_points.csv.gz
+│       └── semidense_observations.csv.gz
+└── Scene2/
+    └── mps_another_sequence_vrs/
+        ├── semidense_points.csv.gz
+        └── semidense_observations.csv.gz
+```
+
+**Split CSV Format:**
+```csv
+scene,sequence,mps,density,frame_count,split
+Andreasstrasse_15,AND_Lib_floor5_1,mps_AND_Lib_floor5_1_vrs,Low,1607,val
+IMS_Labs,IMS_TE21_LEA_lab,mps_IMS_TE21_LEA_lab_vrs,NO_Density,2510,train
+```
+
+**Output Structure:**
+```
+output_dir/
+└── raw_3d_observations/
+    ├── train/
+    │   ├── IMS_TE21_LEA_lab_semidense_points.csv.gz
+    │   └── IMS_TE21_LEA_lab_semidense_observations.csv.gz
+    ├── val/
+    │   ├── AND_Lib_floor5_1_semidense_points.csv.gz
+    │   └── AND_Lib_floor5_1_semidense_observations.csv.gz
+    └── test/
+        └── ...
+```
+
+**Features:**
+- Automatically creates train/val/test directory structure
+- Copies files with sequence name prefix for easy identification
+- Optional symlink mode to save disk space
+- Dry run mode to preview operations
+- Detailed logging and error reporting
+- Progress tracking with tqdm
+- Validates source files exist before processing
+
+---
+
 ## Usage as Python Module
 
 ```python
 # Option 1: Import from main package
-from bb_utils import generate_labels, inspect_npz_file
+from bb_utils import generate_labels, inspect_npz_file, organize_3d_observations
 
 # Generate labels
 generate_labels('config.yaml')
 
+# Organize 3D observations
+from pathlib import Path
+organize_3d_observations(
+    data_root_dir=Path('/path/to/ROOT'),
+    split_csv_path=Path('split.csv'),
+    output_dir=Path('/path/to/output'),
+    dry_run=False,
+    symlink=False,
+    verbose=True
+)
+
 # Option 2: Import from submodules
 from bb_utils.label_generation import generate_labels
 from bb_utils.utils import inspect_npz_file
+from bb_utils.data_preparation import organize_3d_observations
 ```

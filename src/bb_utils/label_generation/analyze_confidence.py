@@ -229,8 +229,8 @@ def save_sorted_data_all_methods(df: pd.DataFrame, output_path: Path):
         # Dynamic header based on methods present
         header_parts = [f"{'uid':>10}", f"{'inv_dist_std':>15}", f"{'dist_std':>15}"]
         for conf_col in confidence_cols:
-            method_name = conf_col.replace('confidence_', '')[:15]  # truncate if needed
-            header_parts.append(f"{method_name:>15}")
+            method_name = conf_col.replace('confidence_', '')
+            header_parts.append(f"{method_name:>20}")
         f.write(" ".join(header_parts) + "\n")
         f.write("-" * 150 + "\n")
         
@@ -247,7 +247,7 @@ def save_sorted_data_all_methods(df: pd.DataFrame, output_path: Path):
                 ]
                 # Confidence columns
                 for conf_col in confidence_cols:
-                    line_parts.append(f"{row[conf_col]:>15.6f}")
+                    line_parts.append(f"{row[conf_col]:>20.6f}")
                 f.write(" ".join(line_parts) + "\n")
     
     print(f"✓ Sorted data saved to: {output_path}")
