@@ -7,6 +7,11 @@ src/bb_utils.egg-info/dependency_links.txt
 src/bb_utils.egg-info/entry_points.txt
 src/bb_utils.egg-info/requires.txt
 src/bb_utils.egg-info/top_level.txt
+src/bb_utils/confidence_decay_analysis/__init__.py
+src/bb_utils/confidence_decay_analysis/analyzer.py
+src/bb_utils/confidence_decay_analysis/cli.py
+src/bb_utils/confidence_decay_analysis/confidence_function.py
+src/bb_utils/confidence_decay_analysis/streaming_stats.py
 src/bb_utils/data_preparation/__init__.py
 src/bb_utils/data_preparation/organize_3d_observations.py
 src/bb_utils/label_generation/__init__.py
