@@ -165,7 +165,7 @@ output_dir/
 
 ### Confidence Decay Rate Analyzer
 
-Analyze the distribution of `inv_dist_std` values from InCrowd-VI semi-dense SLAM data and compute optimal confidence decay rate parameters for keypoint filtering:
+Analyze the distribution of `inv_dist_std` values from InCrowd-VI semi-dense 3D point cloud and compute optimal confidence decay rate parameters for computing confidence:
 
 ```bash
 # Basic usage
@@ -173,23 +173,18 @@ bb-analyze-decay-rate \
   --input /path/to/raw_3d_observations/train \
   --output-dir logs/decay-analysis
 
-# Full analysis with plots and per-file statistics
-bb-analyze-decay-rate \
-  --input /path/to/raw_3d_observations/train \
-  --output-dir logs/decay-analysis \
-  --plot \
-  --per-file \
-  --percentiles \
-  --verbose
-
-# Custom MPS threshold parameters
+# Full analysis with plots and per-file statistics with custom MPS threshold parameters
 bb-analyze-decay-rate \
   --input /path/to/raw_3d_observations/train \
   --output-dir logs/decay-analysis \
   --x-thr 0.005 \
-  --lambda 3.0 \
+  --lambda 100.0 \
   --c-min 0.1 \
-  --plot
+  --per-file \
+  --plot \
+  --percentiles \
+  --verbose
+
 ```
 
 **Purpose:**
@@ -200,19 +195,11 @@ This tool helps determine the optimal `decay_rate` (α) parameter for the expone
 confidence(x) = exp(-α × x)
 ```
 
-where `x` is the `inv_dist_std` value (inverse distance standard deviation) from MPS semi-dense SLAM output.
-
-**Input Data:**
-
-- Expects `*_semidense_points.csv.gz` files containing MPS semi-dense SLAM points
-- Analyzes the `inv_dist_std` column to determine optimal decay rate
-- Can process individual files or entire directories
+where `x` is the `inv_dist_std` value (inverse distance standard deviation) from Meta MPS semi-dense SLAM output.
 
 **Output Files:**
 
-The tool generates comprehensive analysis results in the specified output directory:
-
-- `confidence_analysis.json` - Complete analysis report including:
+- `confidence_analysis.json`: nalysis report including:
   - Confidence parameters (α, x_thr, x_max, λ, c_min)
   - Distribution statistics (min, max, mean, std)
   - Filtering report (outlier counts and percentages)
@@ -236,10 +223,10 @@ The tool generates comprehensive analysis results in the specified output direct
 - `--output-dir`: Directory where results will be saved
 - `--column`: Column name to analyze (default: `inv_dist_std`)
 - `--x-thr`: MPS nominal threshold (default: `0.005`)
-- `--lambda`: Safety factor λ > 1, controls outlier cutoff: x_max = λ × x_thr (default: `3.0`)
+- `--lambda`: Safety factor λ > 1, controls outlier cutoff: x_max = λ × x_thr
 - `--c-min`: Minimum confidence at x_max (default: `0.1`)
 - `--per-file`: Compute statistics for each input file separately
-- `--plot`: Generate visualization plots (requires matplotlib)
+- `--plot`: Generate visualization plots
 - `--percentiles`: Compute distribution percentiles (requires tdigest)
 - `--chunk-size`: CSV chunk size for memory-efficient processing (default: `100000`)
 - `--verbose`, `-v`: Enable detailed logging
@@ -248,50 +235,19 @@ The tool generates comprehensive analysis results in the specified output direct
 
 The MPS-threshold-based confidence function uses three user-specified parameters:
 
-1. **x_thr**: MPS nominal threshold (typically 0.005)
-2. **λ (lambda)**: Safety factor for outlier rejection (e.g., 3.0 means x_max = 3 × 0.005 = 0.015)
+1. **x_thr**: MPS nominal threshold (0.005)
+2. **λ**: Safety factor for outlier rejection (e.g., 100.0 means x_max = 100 × 0.005 = 0.5)
 3. **c_min**: Minimum acceptable confidence at x_max (e.g., 0.1 = 10%)
 
 From these, the tool automatically computes:
 - **x_max** = λ × x_thr (outlier cutoff threshold)
 - **α (alpha/decay_rate)** = -ln(c_min) / (x_max - x_thr)
 
-The computed `decay_rate` can then be used in your heatmap generation config.
+The computed `decay_rate` can then be used in the [heatmap generation config](https://github.com/banafshebamdad/sp-score/blob/main/configs/preprocessing_heatmap_generation.yaml).
 
-**Use Case Example:**
-
-When generating SuperPoint training heatmaps with confidence weighting, you need to know the appropriate `decay_rate`:
-
-1. Run the analyzer on your training data:
-   ```bash
-   bb-analyze-decay-rate \
-     --input /path/to/raw_3d_observations/train \
-     --output-dir logs/decay-analysis \
-     --x-thr 0.005 \
-     --lambda 100.0 \
-     --c-min 0.1 \
-     --plot --percentiles --verbose
-   ```
-
-2. Check the output `confidence_analysis.json` for the computed `alpha` value
-
-3. Use this `alpha` as the `decay_rate` in your heatmap generation config:
-   ```yaml
-   confidence:
-     method: "exp_inv_dist_std"
-     decay_rate: 4.65  # Copy from analysis output
-   ```
-
-**Optional Dependencies:**
+**Dependencies:**
 
 ```bash
-# For plotting
-pip install bb-utils[plotting]
-
-# For percentile computation
-pip install bb-utils[percentiles]
-
-# For both
 pip install bb-utils[all]
 ```
 
