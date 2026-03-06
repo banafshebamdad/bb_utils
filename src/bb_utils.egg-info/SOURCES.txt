@@ -24,3 +24,7 @@ src/bb_utils/label_generation/validate_csv_to_npz.py
 src/bb_utils/label_generation/validate_labels.py
 src/bb_utils/utils/__init__.py
 src/bb_utils/utils/inspect_npz.py
+tests/test_analyzer.py
+tests/test_cli.py
+tests/test_confidence_function.py
+tests/test_streaming_stats.py

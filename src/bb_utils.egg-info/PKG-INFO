@@ -181,28 +181,93 @@ output_dir/
 
 ---
 
-## Usage as Python Module
+### Confidence Decay Rate Analyzer
 
-```python
-# Option 1: Import from main package
-from bb_utils import generate_labels, inspect_npz_file, organize_3d_observations
+Analyze the distribution of `inv_dist_std` values from InCrowd-VI semi-dense 3D point cloud and compute optimal confidence decay rate parameters for computing confidence:
 
-# Generate labels
-generate_labels('config.yaml')
+```bash
+# Basic usage
+bb-analyze-decay-rate \
+  --input /path/to/raw_3d_observations/train \
+  --output-dir logs/decay-analysis
 
-# Organize 3D observations
-from pathlib import Path
-organize_3d_observations(
-    data_root_dir=Path('/path/to/ROOT'),
-    split_csv_path=Path('split.csv'),
-    output_dir=Path('/path/to/output'),
-    dry_run=False,
-    symlink=False,
-    verbose=True
-)
+# Full analysis with plots and per-file statistics with custom MPS threshold parameters
+bb-analyze-decay-rate \
+  --input /path/to/raw_3d_observations/train \
+  --output-dir logs/decay-analysis \
+  --x-thr 0.005 \
+  --lambda 100.0 \
+  --c-min 0.1 \
+  --per-file \
+  --plot \
+  --percentiles \
+  --verbose
 
-# Option 2: Import from submodules
-from bb_utils.label_generation import generate_labels
-from bb_utils.utils import inspect_npz_file
-from bb_utils.data_preparation import organize_3d_observations
 ```
+
+**Purpose:**
+
+This tool helps determine the optimal `decay_rate` (α) parameter for the exponential confidence function used in heatmap generation. The confidence function is:
+
+```
+confidence(x) = exp(-α × x)
+```
+
+where `x` is the `inv_dist_std` value (inverse distance standard deviation) from Meta MPS semi-dense SLAM output.
+
+**Output Files:**
+
+- `confidence_analysis.json`: nalysis report including:
+  - Confidence parameters (α, x_thr, x_max, λ, c_min)
+  - Distribution statistics (min, max, mean, std)
+  - Filtering report (outlier counts and percentages)
+  - Confidence distribution statistics
+  - Sanity checks for confidence function
+  - Per-file statistics (if `--per-file` enabled)
+
+- `confidence_summary.csv` - Tabular summary with:
+  - Overall and per-file statistics
+  - Confidence parameters
+  - Filtering and confidence distribution metrics
+
+- **Plots** (if `--plot` enabled):
+  - `inv_dist_std_distribution.png` - Histogram of inv_dist_std values with threshold markers
+  - `confidence_curve.png` - Confidence function visualization
+  - `confidence_histogram.png` - Distribution of confidence values
+
+**CLI Parameters:**
+
+- `--input`: Path(s) to CSV.gz files or directories (can specify multiple)
+- `--output-dir`: Directory where results will be saved
+- `--column`: Column name to analyze (default: `inv_dist_std`)
+- `--x-thr`: MPS nominal threshold (default: `0.005`)
+- `--lambda`: Safety factor λ > 1, controls outlier cutoff: x_max = λ × x_thr
+- `--c-min`: Minimum confidence at x_max (default: `0.1`)
+- `--per-file`: Compute statistics for each input file separately
+- `--plot`: Generate visualization plots
+- `--percentiles`: Compute distribution percentiles (requires tdigest)
+- `--chunk-size`: CSV chunk size for memory-efficient processing (default: `100000`)
+- `--verbose`, `-v`: Enable detailed logging
+
+**Confidence Function:**
+
+The MPS-threshold-based confidence function uses three user-specified parameters:
+
+1. **x_thr**: MPS nominal threshold (0.005)
+2. **λ**: Safety factor for outlier rejection (e.g., 100.0 means x_max = 100 × 0.005 = 0.5)
+3. **c_min**: Minimum acceptable confidence at x_max (e.g., 0.1 = 10%)
+
+From these, the tool automatically computes:
+- **x_max** = λ × x_thr (outlier cutoff threshold)
+- **α (alpha/decay_rate)** = -ln(c_min) / (x_max - x_thr)
+
+The computed `decay_rate` can then be used in the [heatmap generation config](https://github.com/banafshebamdad/sp-score/blob/main/configs/preprocessing_heatmap_generation.yaml).
+
+**Dependencies:**
+
+```bash
+pip install bb-utils[all]
+```
+
+---
+

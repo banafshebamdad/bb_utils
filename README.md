@@ -20,6 +20,15 @@ This will install the package and all dependencies.
 
 ## Tools
 
+| Tool | Description |
+|------|-------------|
+| [NPZ Inspector](#npz-inspector) | Inspect contents of NumPy `.npz` files with detailed statistics |
+| [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
+| [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
+| [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
+
+---
+
 ### NPZ Inspector
 
 Inspect the contents of NumPy `.npz` files with detailed statistics:
