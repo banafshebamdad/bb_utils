@@ -5,6 +5,18 @@ It provides tools for dataset processing, label generation, and inspection utili
 
 ---
 
+## Table of Contents
+
+- [Installation](#installation)
+  - [Local editable install](#local-editable-install)
+- [Tools](#tools)
+  - [NPZ Inspector](#npz-inspector)
+  - [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training)
+  - [3D Observation Organizer](#3d-observation-organizer)
+  - [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer)
+
+---
+
 ## Installation
 
 ### Local editable install
