@@ -1,7 +1,7 @@
 # bb_utils
 
 `bb_utils` is a lightweight Python utility package developed to support [SP-SCore](https://github.com/banafshebamdad/SP-SCore) research and development.  
-It provides **CLI tools** for dataset processing, label generation, and inspection, as well as **reusable Python libraries** — including a pluggable segmentation backend used by the sp-score static reliability pipeline.
+It provides **CLI tools** for dataset processing, label generation, and inspection, as well as **reusable Python libraries**, including a pluggable segmentation backend used by the sp-score static reliability pipeline.
 
 ---
 
@@ -16,6 +16,7 @@ It provides **CLI tools** for dataset processing, label generation, and inspecti
   - [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer)
 - [Libraries](#libraries)
   - [Segmentation Backend](#segmentation-backend)
+  - [World-Coordinate Cache Builder](#world-coordinate-cache-builder)
 
 ---
 
@@ -55,6 +56,22 @@ See [docs/segmentation_README.md](docs/segmentation_README.md) for full document
 - Config format
 - Mask utilities (`dilate_mask`, `union_masks`, `resize_mask`)
 - How to add a new backend
+
+---
+
+### World-Coordinate Cache Builder
+
+`bb_utils.data_preparation.world_coords_cache` converts Aria MPS
+`*_semidense_points.csv.gz` files into compact NPZ caches mapping each global
+UID to its 3-D world coordinates (`uid → xyz`).  It is a generic,
+project-independent utility; the `sp-cache-world-coords` CLI in sp-score is a
+thin wrapper around it.
+
+See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for full documentation covering:
+- Input CSV format and required columns
+- Output NPZ contract (`uid`, `xyz` arrays)
+- `build_world_coords_cache`, `discover_sequences`, `run_split` API
+- sp-score integration
 
 ---
 
