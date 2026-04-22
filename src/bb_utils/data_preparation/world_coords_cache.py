@@ -44,7 +44,10 @@ run_split
     Build caches for all sequences in one split directory.
 """
 
+import argparse
 import logging
+import sys
+import time
 from pathlib import Path
 from typing import Dict, List
 
@@ -251,3 +254,112 @@ def run_split(
         "skipped": n_skip,
         "failed": n_fail,
     }
+
+
+# ---------------------------------------------------------------------------
+# Standalone CLI (bb-cache-world-coords)
+# ---------------------------------------------------------------------------
+
+def _setup_logging(verbose: bool) -> None:
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
+def main() -> None:
+    """CLI entry point: bb-cache-world-coords.
+
+    Builds per-sequence world-coordinate NPZ caches from Aria MPS
+    ``*_semidense_points.csv.gz`` files without requiring any project-specific
+    config file.
+
+    Usage::
+
+        bb-cache-world-coords \\
+          --raw-3d-dir /path/to/raw_3d_observations \\
+          --output-dir /path/to/world_coords \\
+          --split train
+
+        # Process all splits
+        bb-cache-world-coords \\
+          --raw-3d-dir /path/to/raw_3d_observations \\
+          --output-dir /path/to/world_coords \\
+          --split train --split val --split test
+
+        # Rebuild even if cache already exists
+        bb-cache-world-coords \\
+          --raw-3d-dir /path/to/raw_3d_observations \\
+          --output-dir /path/to/world_coords \\
+          --split train --force
+    """
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build per-sequence world-coordinate NPZ caches from "
+            "Aria MPS semidense_points.csv.gz files."
+        )
+    )
+    parser.add_argument(
+        "--raw-3d-dir", type=Path, required=True,
+        help=(
+            "Root directory containing per-split sub-directories with "
+            "*_semidense_points.csv.gz files "
+            "(e.g. /home/ubuntu/raw_3d_observations)."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, required=True,
+        help=(
+            "Root directory for output NPZ files.  Per-split sub-directories "
+            "are created automatically "
+            "(e.g. dataset/incrowdvi/world_coords)."
+        ),
+    )
+    parser.add_argument(
+        "--split", dest="splits", action="append",
+        choices=["train", "val", "test"],
+        metavar="SPLIT",
+        help=(
+            "Split to process (train/val/test).  "
+            "Repeat to process multiple splits: --split train --split val."
+        ),
+    )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Rebuild caches even if they already exist.",
+    )
+    parser.add_argument("--verbose", action="store_true")
+
+    args = parser.parse_args()
+    _setup_logging(args.verbose)
+
+    if not args.raw_3d_dir.exists():
+        logger.error("--raw-3d-dir does not exist: %s", args.raw_3d_dir)
+        sys.exit(1)
+
+    splits: List[str] = args.splits if args.splits else ["train", "val", "test"]
+
+    t0 = time.time()
+    totals: Dict[str, int] = {}
+
+    for split in splits:
+        logger.info("Processing split: %s", split)
+        summary = run_split(args.raw_3d_dir, args.output_dir, split, force=args.force)
+        for k, v in summary.items():
+            totals[k] = totals.get(k, 0) + v
+        logger.info(
+            "  Split %s: %d built, %d skipped, %d failed",
+            split, summary["built"], summary["skipped"], summary["failed"],
+        )
+
+    elapsed = time.time() - t0
+    logger.info(
+        "Done — %d built, %d skipped, %d failed  (%.1fs)",
+        totals.get("built", 0), totals.get("skipped", 0),
+        totals.get("failed", 0), elapsed,
+    )
+
+    if totals.get("failed", 0) > 0:
+        sys.exit(1)

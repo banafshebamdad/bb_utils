@@ -13,10 +13,10 @@ It provides **CLI tools** for dataset processing, label generation, and inspecti
   - [NPZ Inspector](#npz-inspector)
   - [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training)
   - [3D Observation Organizer](#3d-observation-organizer)
+  - [World-Coordinate Cache Builder](#world-coordinate-cache-builder)
   - [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer)
 - [Libraries](#libraries)
   - [Segmentation Backend](#segmentation-backend)
-  - [World-Coordinate Cache Builder](#world-coordinate-cache-builder)
 
 ---
 
@@ -40,6 +40,7 @@ This will install the package and all dependencies.
 | [NPZ Inspector](#npz-inspector) | Inspect contents of NumPy `.npz` files with detailed statistics |
 | [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
 | [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
+| [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Aria MPS semidense point-cloud CSV files |
 | [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
 
 ---
@@ -59,21 +60,7 @@ See [docs/segmentation_README.md](docs/segmentation_README.md) for full document
 
 ---
 
-### World-Coordinate Cache Builder
 
-`bb_utils.data_preparation.world_coords_cache` converts Aria MPS
-`*_semidense_points.csv.gz` files into compact NPZ caches mapping each global
-UID to its 3-D world coordinates (`uid → xyz`).  It is a generic,
-project-independent utility; the `sp-cache-world-coords` CLI in sp-score is a
-thin wrapper around it.
-
-See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for full documentation covering:
-- Input CSV format and required columns
-- Output NPZ contract (`uid`, `xyz` arrays)
-- `build_world_coords_cache`, `discover_sequences`, `run_split` API
-- sp-score integration
-
----
 
 ### NPZ Inspector
 
@@ -215,6 +202,48 @@ output_dir/
 - Detailed logging and error reporting
 - Progress tracking with tqdm
 - Validates source files exist before processing
+
+---
+
+### World-Coordinate Cache Builder
+
+Build per-sequence uid→xyz NPZ caches from Aria MPS `*_semidense_points.csv.gz` files.
+Required as a data preparation step before running the sp-score static reliability pipeline.
+
+```bash
+# Cache one split
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train
+
+# Cache multiple splits at once
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --split val
+
+# Rebuild even if cache already exists
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --force
+
+# Verbose output
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --verbose
+```
+
+**Input:** `{raw_3d_dir}/{split}/{sequence}_semidense_points.csv.gz`
+Required columns: `uid`, `px_world`, `py_world`, `pz_world`.
+
+**Output:** `{output_dir}/{split}/{sequence}_world_coords.npz`
+Contains two arrays: `uid` (int64, shape K) and `xyz` (float64, shape K×3).
+The tool is idempotent — already-existing NPZ files are skipped unless `--force` is passed.
+
+See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for the full API reference and sp-score integration details.
 
 ---
 

@@ -6,15 +6,18 @@ files into compact NumPy NPZ caches that map each global UID to its 3-D world
 coordinates.
 
 The module contains **no project-specific logic**.  All paths are passed
-explicitly so it can be reused across any Aria MPS dataset.  The sp-score
-`sp-cache-world-coords` CLI is a thin wrapper that reads its own YAML config
-and delegates here.
+explicitly so it can be reused across any Aria MPS dataset.
+
+It ships with a standalone CLI (`bb-cache-world-coords`) that can be run
+directly without any project config file, and is also used internally by
+sp-score via `bb_utils.data_preparation.world_coords_cache.run_split`.
 
 ---
 
 ## Table of Contents
 
 - [Purpose](#purpose)
+- [CLI usage](#cli-usage)
 - [Input format](#input-format)
 - [Output contract (NPZ)](#output-contract-npz)
 - [Public API](#public-api)
@@ -22,7 +25,7 @@ and delegates here.
   - [discover_sequences](#discover_sequences)
   - [run_split](#run_split)
 - [Directory layout](#directory-layout)
-- [Usage example](#usage-example)
+- [Python usage example](#python-usage-example)
 - [sp-score integration](#sp-score-integration)
 - [Dependencies](#dependencies)
 
@@ -40,6 +43,40 @@ Loading and joining these files at runtime for every pipeline run is slow.
 This module pre-builds a compact NPZ cache (`uid → xyz`) from the points CSV
 so that downstream consumers can look up world coordinates by UID in O(1) with
 a simple dictionary, without reading the large CSV again.
+
+---
+
+## CLI usage
+
+```bash
+# Cache one split
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train
+
+# Cache multiple splits at once
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --split val
+
+# Rebuild even if cache already exists
+bb-cache-world-coords \
+  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --force
+```
+
+CLI flags:
+
+| Flag | Required | Description |
+|---|---|---|
+| `--raw-3d-dir` | yes | Root dir with `{split}/*_semidense_points.csv.gz` files |
+| `--output-dir` | yes | Root dir for output NPZ files (sub-dirs created automatically) |
+| `--split` | no | `train`/`val`/`test`; repeat for multiple splits (default: all three) |
+| `--force` | no | Overwrite existing NPZ files |
+| `--verbose` | no | Enable DEBUG-level logging |
 
 ---
 
@@ -168,7 +205,7 @@ output_dir/                    ← created automatically
 
 ---
 
-## Usage example
+## Python usage example
 
 ```python
 from pathlib import Path
@@ -187,19 +224,24 @@ print(summary)
 
 ## sp-score integration
 
-`sp-cache-world-coords` (registered in `sp-score/pyproject.toml`) is a thin
-CLI wrapper around this module:
+`bb-cache-world-coords` is the preferred way to build the world-coordinate
+cache.  It requires no sp-score config file and can be run as a standalone
+data preparation step before setting up sp-score.
+
+The sp-score pipeline reads the resulting NPZ files via
+`sp_score.static_reliability.frame.load_world_coords_npz`, which loads them
+into a `Dict[int, np.ndarray]` (uid → xyz) for use in the temporal score
+computation.
 
 ```
-sp-cache-world-coords
-  └── sp_score.preprocessing.world_coords_cache.run_for_split()
-        ├── reads data.raw_3d_dir and data.world_coords_dir from YAML config
-        └── calls bb_utils.data_preparation.world_coords_cache.run_split()
-```
+bb-cache-world-coords                           ← standalone, no config needed
+  └── bb_utils.data_preparation.world_coords_cache.run_split()
+        └── build_world_coords_cache() per sequence → NPZ
 
-The output NPZ files are consumed by `sp_score.static_reliability.frame.load_world_coords_npz`,
-which loads them into a `Dict[int, np.ndarray]` (uid → xyz) for use in the
-temporal score computation.
+sp-score static reliability pipeline
+  └── frame.load_world_coords_npz()             ← reads the NPZ
+        └── {world_coords_dir}/{split}/{sequence}_world_coords.npz
+```
 
 ---
 
