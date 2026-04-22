@@ -40,7 +40,7 @@ This will install the package and all dependencies.
 | [NPZ Inspector](#npz-inspector) | Inspect contents of NumPy `.npz` files with detailed statistics |
 | [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
 | [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
-| [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Aria MPS semidense point-cloud CSV files |
+| [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Meta Aria MPS semidense point-cloud CSV files |
 | [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
 
 ---
@@ -213,25 +213,25 @@ Required as a data preparation step before running the sp-score static reliabili
 ```bash
 # Cache one split
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
   --split train
 
 # Cache multiple splits at once
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
   --split train --split val
 
 # Rebuild even if cache already exists
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
   --split train --force
 
 # Verbose output
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
   --split train --verbose
 ```
@@ -241,7 +241,7 @@ Required columns: `uid`, `px_world`, `py_world`, `pz_world`.
 
 **Output:** `{output_dir}/{split}/{sequence}_world_coords.npz`
 Contains two arrays: `uid` (int64, shape K) and `xyz` (float64, shape K×3).
-The tool is idempotent — already-existing NPZ files are skipped unless `--force` is passed.
+The tool is idempotent: running it multiple times will not overwrite existing NPZ files unless `--force` is used. 
 
 See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for the full API reference and sp-score integration details.
 
