@@ -48,6 +48,8 @@ a simple dictionary, without reading the large CSV again.
 
 ## CLI usage
 
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](https://github.com/banafshebamdad/bb_utils/blob/main/README.md#3d-observation-organizer) (`bb-organize-3d-obs`).
+
 ```bash
 # Cache one split
 bb-cache-world-coords \
@@ -206,6 +208,8 @@ output_dir/                    ← created automatically
 ---
 
 ## Python usage example
+
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](https://github.com/banafshebamdad/bb_utils/blob/main/README.md#3d-observation-organizer) (`bb-organize-3d-obs`).
 
 ```python
 from pathlib import Path

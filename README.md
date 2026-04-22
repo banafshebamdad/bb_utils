@@ -210,6 +210,8 @@ output_dir/
 Build per-sequence uid→xyz NPZ caches from Aria MPS `*_semidense_points.csv.gz` files.
 Required as a data preparation step before running the sp-score static reliability pipeline.
 
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](#3d-observation-organizer) above.
+
 ```bash
 # Cache one split
 bb-cache-world-coords \
@@ -250,6 +252,8 @@ See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for t
 ### Confidence Decay Rate Analyzer
 
 Analyze the distribution of `inv_dist_std` values from InCrowd-VI semi-dense 3D point cloud and compute optimal confidence decay rate parameters for computing confidence:
+
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](#3d-observation-organizer).
 
 ```bash
 # Basic usage
