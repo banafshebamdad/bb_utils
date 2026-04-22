@@ -2,8 +2,7 @@
 
 `bb_utils.segmentation` provides a common interface for running instance and
 semantic segmentation models on RGB images, normalising each model's output
-into a single **binary mask contract** that callers (e.g. `sp-run-segmentation`
-in sp-score) can consume without knowing which model produced it.
+into a single **binary mask contract** that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
 
 ---
 
@@ -130,7 +129,7 @@ model:
   iou_threshold: 0.45
 ```
 
-The full segmentation pipeline config (used by `sp-run-segmentation`) is at
+The full segmentation pipeline config (used by `bb-run-segmentation`) is at
 [sp-score/configs/preprocessing_segmentation.yaml](../../sp-score/configs/preprocessing_segmentation.yaml).
 
 ---
@@ -210,7 +209,7 @@ resized = resize_mask(mask, (480, 640))
 
 3. Use it by setting `model.backend: sam` in the pipeline YAML config.
 
-No changes are required in `segmentation_runner.py` or any other caller.
+No changes are required in `segmentation_runner.py` (`bb_utils.data_preparation`) or any other caller.
 
 ---
 

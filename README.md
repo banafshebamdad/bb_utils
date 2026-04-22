@@ -41,6 +41,7 @@ This will install the package and all dependencies.
 | [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
 | [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
 | [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Meta Aria MPS semidense point-cloud CSV files |
+| [Segmentation Runner](#segmentation-runner) | Run per-frame segmentation and write binary mask NPZ files for any image dataset |
 | [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
 
 ---
@@ -49,7 +50,7 @@ This will install the package and all dependencies.
 
 ### Segmentation Backend
 
-`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images.  It normalises each model's output into a single binary mask contract consumed by `sp-run-segmentation` in sp-score.
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images.  It normalises each model's output into a single binary mask contract consumed by `bb-run-segmentation`.
 
 See [docs/segmentation_README.md](docs/segmentation_README.md) for full documentation covering:
 - Output contract
@@ -246,6 +247,36 @@ Contains two arrays: `uid` (int64, shape K) and `xyz` (float64, shape K×3).
 The tool is idempotent: running it multiple times will not overwrite existing NPZ files unless `--force` is used. 
 
 See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for the full API reference and sp-score integration details.
+
+---
+
+### Segmentation Runner
+
+Run per-frame segmentation on any image dataset that follows a `{split}/{stem}.png` directory layout, and write binary mask NPZ files.  Delegates inference to the `bb_utils.segmentation` backend library (YOLOv8-seg and any registered custom backend).
+
+```bash
+# Run segmentation on one split
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --split train
+
+# Run on all splits defined in config
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml
+
+# Rebuild even if masks already exist
+bb-run-segmentation --config ... --split train --force
+
+# Dry run (validate config without running inference)
+bb-run-segmentation --config ... --dry-run
+```
+
+**Input:** `{keypoints_dir}/{split}/{stem}.npz` (used to discover frame stems) and `{images_dir}/{split}/{stem}.png`.
+
+**Output:** `{semantic_masks_dir}/{split}/{stem}.npz` — each file contains a single `uint8 (H, W)` array under key `"mask"` with `1` = detected target class, `0` = background.
+
+The tool is idempotent: existing masks are skipped unless `--force` is used.
+
+See [docs/segmentation_README.md](docs/segmentation_README.md) for the backend library API and how to add a new backend.
 
 ---
 
