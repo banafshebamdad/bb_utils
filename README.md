@@ -14,6 +14,8 @@ It provides tools for dataset processing, label generation, and inspection utili
   - [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training)
   - [3D Observation Organizer](#3d-observation-organizer)
   - [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer)
+- [Libraries](#libraries)
+  - [Segmentation Backend](#segmentation-backend)
 
 ---
 
@@ -38,6 +40,21 @@ This will install the package and all dependencies.
 | [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
 | [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
 | [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
+
+---
+
+## Libraries
+
+### Segmentation Backend
+
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images.  It normalises each model's output into a single binary mask contract consumed by `sp-run-segmentation` in sp-score.
+
+See [docs/segmentation_README.md](docs/segmentation_README.md) for full documentation covering:
+- Output contract
+- Available backends (`YoloBackend` — Ultralytics YOLOv8-seg)
+- Config format
+- Mask utilities (`dilate_mask`, `union_masks`, `resize_mask`)
+- How to add a new backend
 
 ---
 
