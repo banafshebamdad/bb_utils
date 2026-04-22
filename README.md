@@ -1,7 +1,7 @@
 # bb_utils
 
 `bb_utils` is a lightweight Python utility package developed to support [SP-SCore](https://github.com/banafshebamdad/SP-SCore) research and development.  
-It provides tools for dataset processing, label generation, and inspection utilities for SuperPoint training.
+It provides **CLI tools** for dataset processing, label generation, and inspection, as well as **reusable Python libraries** — including a pluggable segmentation backend used by the sp-score static reliability pipeline.
 
 ---
 
