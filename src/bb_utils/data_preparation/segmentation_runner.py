@@ -56,6 +56,7 @@ Config schema (model settings only)
 
 import argparse
 import logging
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -286,6 +287,11 @@ def main() -> None:
 
     target_classes  = model_cfg.get("target_classes", [0])
     dilation_radius = model_cfg.get("mask_dilation_px", 0) or 0
+
+    # Copy config into output directory for reproducibility
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(args.config, args.output_dir / args.config.name)
+    logger.info("Config copied to %s", args.output_dir / args.config.name)
 
     t0 = time.time()
     summary = run_on_dir(
