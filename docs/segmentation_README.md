@@ -119,10 +119,6 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ## CLI usage
 
-`bb-run-segmentation` discovers frames by globbing `{images_dir}/{split}/*.png`
-directly, so it can be used as a standalone tool on any image folder without
-requiring keypoint files to be present first.
-
 ```bash
 # Run all splits defined in the config
 bb-run-segmentation --config configs/preprocessing_segmentation.yaml
@@ -152,16 +148,12 @@ CLI flags:
 ## Config format
 
 `create_backend(config)` reads the `model` section of the pipeline config dict.
-The CLI (`bb-run-segmentation`) additionally requires a `data` section.
+The CLI (`bb-run-segmentation`) takes paths directly as `--images-dir` and
+`--output-dir` flags, so the config only needs to contain model settings.
 
 Complete YAML structure:
 
 ```yaml
-data:
-  images_dir:         dataset/incrowdvi/images         # {split}/*.png source frames
-  semantic_masks_dir: dataset/incrowdvi/semantic_masks # output directory for mask NPZ files
-  splits:             [train, val]                     # default splits when --split is not passed
-
 model:
   backend:              yolo
   model_name:           yolov8n-seg   # any Ultralytics *-seg model name or local path
@@ -185,7 +177,7 @@ The sp-score config file is at
 The runner writes one compressed NPZ per source frame:
 
 ```
-{semantic_masks_dir}/{split}/{stem}.npz
+{output_dir}/{stem}.npz
 ```
 
 Each file contains a single array:
