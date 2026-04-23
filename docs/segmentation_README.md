@@ -120,25 +120,42 @@ YOLOv8 weights (COCO): class `0` = `person`.
 ## CLI usage
 
 ```bash
-# Run all splits defined in the config
-bb-run-segmentation --config configs/preprocessing_segmentation.yaml
-
-# Run a single split
-bb-run-segmentation --config configs/preprocessing_segmentation.yaml --split train
+# Segment a directory of images
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --images-dir /path/to/images \
+  --output-dir /path/to/masks
 
 # Overwrite already-generated masks
-bb-run-segmentation --config configs/preprocessing_segmentation.yaml --split train --force
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --images-dir /path/to/images \
+  --output-dir /path/to/masks \
+  --force
 
 # Validate config and paths without running inference
-bb-run-segmentation --config configs/preprocessing_segmentation.yaml --dry-run
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --images-dir /path/to/images \
+  --output-dir /path/to/masks \
+  --dry-run
+
+# For a split-based dataset, call once per split
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml \
+  --images-dir dataset/incrowdvi/images/train \
+  --output-dir dataset/incrowdvi/semantic_masks/train
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml \
+  --images-dir dataset/incrowdvi/images/val \
+  --output-dir dataset/incrowdvi/semantic_masks/val
 ```
 
 CLI flags:
 
 | Flag | Required | Description |
 |---|---|---|
-| `--config` | yes | Path to segmentation YAML config |
-| `--split` | no | `train`, `val`, or `test`; default: all splits listed in `data.splits` |
+| `--config` | yes | Path to segmentation YAML config (model settings) |
+| `--images-dir` | yes | Flat directory of `*.png` frames to segment |
+| `--output-dir` | yes | Destination directory for mask NPZ files |
 | `--force` | no | Overwrite existing mask NPZ files |
 | `--dry-run` | no | Log config summary and exit without running inference |
 | `--verbose` | no | Enable DEBUG-level logging |
