@@ -19,7 +19,22 @@ Requires-Dist: matplotlib>=3.7.0; extra == "all"
 # bb_utils
 
 `bb_utils` is a lightweight Python utility package developed to support [SP-SCore](https://github.com/banafshebamdad/SP-SCore) research and development.  
-It provides tools for dataset processing, label generation, and inspection utilities for SuperPoint training.
+It provides **CLI tools** for dataset processing, label generation, and inspection, as well as **reusable Python libraries**, including a pluggable segmentation backend used by the sp-score static reliability pipeline.
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+  - [Local editable install](#local-editable-install)
+- [Tools](#tools)
+  - [NPZ Inspector](#npz-inspector)
+  - [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training)
+  - [3D Observation Organizer](#3d-observation-organizer)
+  - [World-Coordinate Cache Builder](#world-coordinate-cache-builder)
+  - [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer)
+- [Libraries](#libraries)
+  - [Segmentation Backend](#segmentation-backend)
 
 ---
 
@@ -37,6 +52,34 @@ This will install the package and all dependencies.
 ---
 
 ## Tools
+
+| Tool | Description |
+|------|-------------|
+| [NPZ Inspector](#npz-inspector) | Inspect contents of NumPy `.npz` files with detailed statistics |
+| [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
+| [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
+| [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Meta Aria MPS semidense point-cloud CSV files |
+| [Segmentation Runner](#segmentation-runner) | Run per-frame segmentation and write binary mask NPZ files for any image dataset |
+| [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
+
+---
+
+## Libraries
+
+### Segmentation Backend
+
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images.  It normalises each model's output into a single binary mask contract consumed by `bb-run-segmentation`.
+
+See [docs/segmentation_README.md](docs/segmentation_README.md) for full documentation covering:
+- Output contract
+- Available backends (`YoloBackend` — Ultralytics YOLOv8-seg)
+- Config format
+- Mask utilities (`dilate_mask`, `union_masks`, `resize_mask`)
+- How to add a new backend
+
+---
+
+
 
 ### NPZ Inspector
 
@@ -181,9 +224,85 @@ output_dir/
 
 ---
 
+### World-Coordinate Cache Builder
+
+Build per-sequence uid→xyz NPZ caches from Aria MPS `*_semidense_points.csv.gz` files.
+Required as a data preparation step before running the sp-score static reliability pipeline.
+
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](#3d-observation-organizer) above.
+
+```bash
+# Cache one split
+bb-cache-world-coords \
+  --raw-3d-dir /path/to/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train
+
+# Cache multiple splits at once
+bb-cache-world-coords \
+  --raw-3d-dir /path/to/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --split val
+
+# Rebuild even if cache already exists
+bb-cache-world-coords \
+  --raw-3d-dir /path/to/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --force
+
+# Verbose output
+bb-cache-world-coords \
+  --raw-3d-dir /path/to/raw_3d_observations \
+  --output-dir dataset/incrowdvi/world_coords \
+  --split train --verbose
+```
+
+**Input:** `{raw_3d_dir}/{split}/{sequence}_semidense_points.csv.gz`
+Required columns: `uid`, `px_world`, `py_world`, `pz_world`.
+
+**Output:** `{output_dir}/{split}/{sequence}_world_coords.npz`
+Contains two arrays: `uid` (int64, shape K) and `xyz` (float64, shape K×3).
+The tool is idempotent: running it multiple times will not overwrite existing NPZ files unless `--force` is used. 
+
+See [docs/world_coords_cache_README.md](docs/world_coords_cache_README.md) for the full API reference and sp-score integration details.
+
+---
+
+### Segmentation Runner
+
+Run per-frame segmentation on any image dataset that follows a `{split}/{stem}.png` directory layout, and write binary mask NPZ files.  Delegates inference to the `bb_utils.segmentation` backend library (YOLOv8-seg and any registered custom backend).
+
+```bash
+# Run segmentation on one split
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --split train
+
+# Run on all splits defined in config
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml
+
+# Rebuild even if masks already exist
+bb-run-segmentation --config ... --split train --force
+
+# Dry run (validate config without running inference)
+bb-run-segmentation --config ... --dry-run
+```
+
+**Input:** `{keypoints_dir}/{split}/{stem}.npz` (used to discover frame stems) and `{images_dir}/{split}/{stem}.png`.
+
+**Output:** `{semantic_masks_dir}/{split}/{stem}.npz` — each file contains a single `uint8 (H, W)` array under key `"mask"` with `1` = detected target class, `0` = background.
+
+The tool is idempotent: existing masks are skipped unless `--force` is used.
+
+See [docs/segmentation_README.md](docs/segmentation_README.md) for the backend library API and how to add a new backend.
+
+---
+
 ### Confidence Decay Rate Analyzer
 
 Analyze the distribution of `inv_dist_std` values from InCrowd-VI semi-dense 3D point cloud and compute optimal confidence decay rate parameters for computing confidence:
+
+`raw_3d_observations` is the output directory created by the [3D Observation Organizer](#3d-observation-organizer).
 
 ```bash
 # Basic usage

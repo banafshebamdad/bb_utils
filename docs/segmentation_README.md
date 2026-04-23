@@ -13,7 +13,9 @@ into a single **binary mask contract** that callers (e.g. `bb-run-segmentation`)
 - [Architecture](#architecture)
 - [Available backends](#available-backends)
   - [YoloBackend](#yolobackend)
+- [CLI usage](#cli-usage)
 - [Config format](#config-format)
+- [Output files](#output-files)
 - [Mask utilities](#mask-utilities)
 - [Adding a new backend](#adding-a-new-backend)
 - [Dependencies](#dependencies)
@@ -115,22 +117,96 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ---
 
+## CLI usage
+
+`bb-run-segmentation` is the primary way to run segmentation at scale.  It
+discovers frames by globbing `{keypoints_dir}/{split}/*.npz`, so
+**`sp-extract-keypoints` must run before `bb-run-segmentation`**.
+
+```bash
+# Run all splits defined in the config
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml
+
+# Run a single split
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml --split train
+
+# Overwrite already-generated masks
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml --split train --force
+
+# Validate config and paths without running inference
+bb-run-segmentation --config configs/preprocessing_segmentation.yaml --dry-run
+```
+
+CLI flags:
+
+| Flag | Required | Description |
+|---|---|---|
+| `--config` | yes | Path to segmentation YAML config |
+| `--split` | no | `train`, `val`, or `test`; default: all splits listed in `data.splits` |
+| `--force` | no | Overwrite existing mask NPZ files |
+| `--dry-run` | no | Log config summary and exit without running inference |
+| `--verbose` | no | Enable DEBUG-level logging |
+
+---
+
 ## Config format
 
 `create_backend(config)` reads the `model` section of the pipeline config dict.
-A minimal YAML excerpt:
+The CLI (`bb-run-segmentation`) additionally requires a `data` section.
+
+Complete YAML structure:
 
 ```yaml
+data:
+  keypoints_dir:      dataset/incrowdvi/keypoints      # {split}/*.npz files from sp-extract-keypoints
+  images_dir:         dataset/incrowdvi/images         # {split}/*.png source frames
+  semantic_masks_dir: dataset/incrowdvi/semantic_masks # output directory for mask NPZ files
+  splits:             [train, val]                     # default splits when --split is not passed
+
 model:
-  backend: yolo
-  model_name: yolov8n-seg
-  device: cuda
-  confidence_threshold: 0.25
-  iou_threshold: 0.45
+  backend:              yolo
+  model_name:           yolov8n-seg   # any Ultralytics *-seg model name or local path
+  device:               cuda          # "cpu", "cuda", or "cuda:0"
+  confidence_threshold: 0.25         # required — minimum detection confidence in (0, 1)
+  iou_threshold:        0.45         # required — NMS IoU threshold in (0, 1)
+  target_classes:       [0]          # COCO class 0 = person
+  mask_dilation_px:     5            # required — dilation radius in pixels; 0 = no dilation
 ```
 
-The full segmentation pipeline config (used by `bb-run-segmentation`) is at
+All keys marked *required* have no hardcoded fallback; the pipeline raises a
+clear error at startup if they are left as `null`.
+
+The sp-score config file is at
 [sp-score/configs/preprocessing_segmentation.yaml](../../sp-score/configs/preprocessing_segmentation.yaml).
+
+---
+
+## Output files
+
+The runner writes one compressed NPZ per source frame:
+
+```
+{semantic_masks_dir}/{split}/{stem}.npz
+```
+
+Each file contains a single array:
+
+| Key | dtype | Shape | Description |
+|---|---|---|---|
+| `mask` | `uint8` | `(H, W)` | `1` = detected pedestrian pixel; `0` = static background |
+
+The mask is in the same pixel space as the source image (no spatial
+transformation applied).  `mask_dilation_px` is applied before writing to
+compensate for boundary inaccuracy in fisheye frames.
+
+Loading a mask:
+
+```python
+import numpy as np
+
+data = np.load("dataset/incrowdvi/semantic_masks/train/frame_stem.npz", allow_pickle=False)
+mask = data["mask"]   # uint8 (H, W), values in {0, 1}
+```
 
 ---
 
