@@ -1,0 +1,22 @@
+#
+# Config: preprocessing_segmentation.yaml
+# Author: Banafshe Bamdad + Claude Code
+# Created: 2026-04-21 CET
+#
+# Pipeline: bb-run-segmentation (bb_utils)
+#
+# Example configuration for the InCrowd-VI dataset.
+# Images and output paths are supplied directly via CLI --images-dir and
+# --output-dir flags; this file contains model settings only.
+#
+# Keys marked `null` are REQUIRED.  The pipeline will raise a descriptive
+# error at startup if any required key is left as null.
+#
+model:
+  backend:              "yolo"
+  model_name:           "yolov8n-seg"
+  device:               "cuda"
+  confidence_threshold: null   # required — minimum detection confidence in (0, 1)
+  iou_threshold:        null   # required — NMS IoU threshold in (0, 1)
+  target_classes:       [0]    # COCO class 0 = person
+  mask_dilation_px:     null   # required — compensates fisheye boundary inaccuracy (px)

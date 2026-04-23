@@ -184,8 +184,8 @@ model:
 All keys marked *required* have no hardcoded fallback; the pipeline raises a
 clear error at startup if they are left as `null`.
 
-The sp-score config file is at
-[sp-score/configs/preprocessing_segmentation.yaml](../../sp-score/configs/preprocessing_segmentation.yaml).
+The example config file for InCrowd-VI is at
+[bb_utils/configs/preprocessing_segmentation.yaml](../configs/preprocessing_segmentation.yaml).
 
 ---
 
