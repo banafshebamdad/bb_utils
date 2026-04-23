@@ -29,12 +29,19 @@ Usage
         --images-dir dataset/incrowdvi/frames/train \
         --output-dir logs/mask_spotcheck
 
-    # Custom sample size and seed
+    # Custom sample size, seed, and overlay opacity
     python evaluation/segmentation_spotcheck.py \
-        --masks-dir  dataset/incrowdvi/semantic_masks/train \\
-        --images-dir dataset/incrowdvi/frames/train \\
-        --output-dir logs/mask_spotcheck \\
+        --masks-dir  dataset/incrowdvi/semantic_masks/train \
+        --images-dir dataset/incrowdvi/frames/train \
+        --output-dir logs/mask_spotcheck \
         --n-frames 40 --seed 123 --alpha 0.5
+
+    # Process every mask file (no sampling)
+    python evaluation/segmentation_spotcheck.py \
+        --masks-dir  dataset/incrowdvi/semantic_masks/train \
+        --images-dir dataset/incrowdvi/frames/train \
+        --output-dir logs/mask_spotcheck_all \
+        --all
 """
 
 import argparse
@@ -192,13 +199,18 @@ def run_spotcheck(
     n_frames: int,
     seed: int,
     alpha: float,
+    all_frames: bool = False,
 ) -> None:
     mask_files = sorted(masks_dir.glob("*.npz"))
     if not mask_files:
         logger.error("No NPZ files found in %s", masks_dir)
         return
 
-    selected = _sample_frames(mask_files, n_frames, seed)
+    if all_frames:
+        logger.info("--all: processing all %d mask files", len(mask_files))
+        selected = [(f, float(np.load(f)["mask"].mean())) for f in mask_files]
+    else:
+        selected = _sample_frames(mask_files, n_frames, seed)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     n_saved = n_skipped = 0
@@ -280,6 +292,10 @@ def main() -> None:
         "--alpha", type=float, default=0.45,
         help="Opacity of the red mask overlay, 0–1 (default: 0.45).",
     )
+    parser.add_argument(
+        "--all", dest="all_frames", action="store_true",
+        help="Process every mask in --masks-dir instead of sampling.",
+    )
     args = parser.parse_args()
 
     for path, flag in [(args.masks_dir, "--masks-dir"), (args.images_dir, "--images-dir")]:
@@ -294,6 +310,7 @@ def main() -> None:
         n_frames=args.n_frames,
         seed=args.seed,
         alpha=args.alpha,
+        all_frames=args.all_frames,
     )
 
 

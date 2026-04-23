@@ -234,6 +234,7 @@ python evaluation/segmentation_spotcheck.py \
 | `--n-frames` | `20` | Total frames to sample, spread evenly across the four buckets |
 | `--seed` | `42` | Random seed for reproducible sampling |
 | `--alpha` | `0.45` | Opacity of the red mask overlay (0 = invisible, 1 = solid) |
+| `--all` | off | Process every mask in `--masks-dir` instead of sampling |
 
 Frames are drawn from four density buckets (`zero`, `sparse`, `medium`,
 `dense`) so both empty scenes and heavily masked frames are always represented.
