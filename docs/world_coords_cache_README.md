@@ -29,8 +29,8 @@ It ships with a standalone CLI (`bb-cache-world-coords`) that can be run directl
 The Meta Aria MPS semidense SLAM pipeline outputs two gzipped CSV files per
 recording sequence:
 
-- `*semidense_points.csv.gz`: 3D world positions of tracked points
-- `*semidense_observations.csv.gz`: per-frame 2D observations of those points
+- `semidense_points.csv.gz`: 3D world positions of tracked points
+- `semidense_observations.csv.gz`: per-frame 2D observations of those points
 
 Loading and joining these files at runtime for every pipeline run is slow.
 This module pre-builds a compact NPZ cache (`uid → xyz`) from the points CSV
@@ -187,22 +187,6 @@ non-zero.
 
 ---
 
-## Directory layout
-
-```
-raw_3d_dir/
-└── train/
-    ├── corridor_01_semidense_points.csv.gz
-    └── library_02_semidense_points.csv.gz
-
-output_dir/                    ← created automatically
-└── train/
-    ├── corridor_01_world_coords.npz
-    └── library_02_world_coords.npz
-```
-
----
-
 ## Python usage example
 
 `raw_3d_observations` is the output directory created by the [3D Observation Organizer](https://github.com/banafshebamdad/bb_utils/blob/main/README.md#3d-observation-organizer) (`bb-organize-3d-obs`).
@@ -224,24 +208,10 @@ print(summary)
 
 ## sp-score integration
 
-`bb-cache-world-coords` is the preferred way to build the world-coordinate
-cache.  It requires no sp-score config file and can be run as a standalone
-data preparation step before setting up sp-score.
-
 The sp-score pipeline reads the resulting NPZ files via
 `sp_score.static_reliability.frame.load_world_coords_npz`, which loads them
 into a `Dict[int, np.ndarray]` (uid → xyz) for use in the temporal score
 computation.
-
-```
-bb-cache-world-coords                           ← standalone, no config needed
-  └── bb_utils.data_preparation.world_coords_cache.run_split()
-        └── build_world_coords_cache() per sequence → NPZ
-
-sp-score static reliability pipeline
-  └── frame.load_world_coords_npz()             ← reads the NPZ
-        └── {world_coords_dir}/{split}/{sequence}_world_coords.npz
-```
 
 ---
 

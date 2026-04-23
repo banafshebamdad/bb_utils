@@ -1,14 +1,12 @@
 # Segmentation Backend
 
-`bb_utils.segmentation` provides a common interface for running instance and
-semantic segmentation models on RGB images, normalising each model's output
-into a single **binary mask contract** that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images, normalising each model's output into a single binary mask format that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
 
 ---
 
 ## Table of Contents
 
-- [Output contract](#output-contract)
+- [Output interface](#output-interface)
 - [Package layout](#package-layout)
 - [Architecture](#architecture)
 - [Available backends](#available-backends)
@@ -24,7 +22,7 @@ into a single **binary mask contract** that callers (e.g. `bb-run-segmentation`)
 
 ## Output contract
 
-Every backend satisfies the same contract defined in `base.SegmentationBackend`:
+Every backend satisfies the same interface defined in `base.SegmentationBackend`:
 
 ```
 mask = backend.segment(image, target_classes)
@@ -33,27 +31,14 @@ mask = backend.segment(image, target_classes)
 | Property | Value |
 |---|---|
 | Input `image` | `np.ndarray`, shape `(H, W, 3)`, dtype `uint8`, colour order **RGB** |
-| Input `target_classes` | `List[int]` — model-specific class indices to include |
+| Input `target_classes` | `List[int]`: model-specific class indices to include |
 | Output `mask` | `np.ndarray`, shape `(H, W)`, dtype `uint8`, values strictly in `{0, 1}` |
 | Output semantics | `1` = pixel belongs to a detected instance of a target class; `0` = background |
 | No detections | Returns an all-zeros mask (valid result, not an error) |
-| Spatial alignment | `mask[i, j]` corresponds to `image[i, j]` — no spatial transformation applied |
+| Spatial alignment | `mask[i, j]` corresponds to `image[i, j]`, no spatial transformation applied |
 
 The backend does **not** apply dilation and does **not** convert grayscale input
 to RGB; both are the caller's responsibility.
-
----
-
-## Package layout
-
-```
-bb_utils/segmentation/
-    __init__.py       — public API: SegmentationBackend, create_backend, mask utils
-    base.py           — abstract SegmentationBackend (ABC) + contract documentation
-    factory.py        — create_backend(config), register_backend(name, cls)
-    yolo_backend.py   — YoloBackend: Ultralytics YOLOv8-seg
-    utils.py          — dilate_mask, union_masks, resize_mask
-```
 
 ---
 
@@ -98,7 +83,7 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 **Inference flow:**
 
-1. `model.predict(image_rgb, conf=..., iou=..., device=...)` — runs NMS internally.
+1. `model.predict(image_rgb, conf=..., iou=..., device=...)`, runs NMS internally.
 2. For each detected instance whose class is in `target_classes`, extract the
    float instance mask at model resolution.
 3. Threshold at `0.5` → binary; resize to input `(H, W)` with nearest-neighbour
@@ -119,7 +104,7 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ## CLI usage
 
-**Prerequisites** — install the backend dependency before running:
+**Prerequisites**: install the backend dependency before running:
 
 ```bash
 pip install ultralytics   # required for the default YOLOv8-seg backend
@@ -221,6 +206,25 @@ import numpy as np
 data = np.load("dataset/incrowdvi/semantic_masks/train/frame_stem.npz", allow_pickle=False)
 mask = data["mask"]   # uint8 (H, W), values in {0, 1}
 ```
+
+### Visual spot-check
+
+Use the bundled example script to overlay a sample of masks on their source
+frames and save the blended PNGs for manual inspection:
+
+```bash
+python examples/segmentation_spotcheck_example.py \
+  --masks-dir  dataset/incrowdvi/semantic_masks/train \
+  --images-dir dataset/incrowdvi/frames/train \
+  --output-dir logs/mask_spotcheck
+```
+
+Frames are drawn from four density buckets (`zero`, `sparse`, `medium`,
+`dense`) so both empty scenes and heavily masked frames are always represented.
+Output filenames encode the bucket and density value, e.g.
+`dense_d0.45_Kiko_loop_R_1058664352.png`.  See
+[`examples/segmentation_spotcheck_example.py`](../examples/segmentation_spotcheck_example.py)
+for all options (`--n-frames`, `--seed`, `--alpha`).
 
 ---
 
