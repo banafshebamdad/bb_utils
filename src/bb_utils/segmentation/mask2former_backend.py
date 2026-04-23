@@ -148,6 +148,7 @@ class Mask2FormerBackend(SegmentationBackend):
                 outputs,
                 threshold=self._conf,
                 target_sizes=[(H, W)],
+                label_ids_to_fuse=[],
             )
         else:
             results = self._processor.post_process_instance_segmentation(

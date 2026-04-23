@@ -10,10 +10,11 @@
 # --output-dir flags; this file contains model settings only.
 #
 model:
-  backend:              "yolo"
-  model_name:           "yolo11n-seg" # "yolov8n-seg"
+  backend:              "mask2former" # "yolo"
+  model_name:           "/home/ubuntu/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors" # "facebook/mask2former-swin-large-coco-panoptic" # "facebook/mask2former-swin-large-coco-instance" # "yolov8n-seg"
   device:               "cuda"
-  confidence_threshold: 0.25   # required — minimum detection confidence in (0, 1)
+  confidence_threshold: 0.6 # 0.25   # required — minimum detection confidence in (0, 1)
   iou_threshold:        0.50   # required — NMS IoU threshold in (0, 1)
   target_classes:       [0]    # COCO class 0 = person
-  mask_dilation_px:     3      # dilation radius in pixels; 0 = no dilation
+  mask_dilation_px:     5      # dilation radius in pixels; 0 = no dilation
+  segmentation_type:    "panoptic" # "instance" or "panoptic"; only used for Mask2Former backend
