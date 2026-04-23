@@ -119,6 +119,12 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ## CLI usage
 
+**Prerequisites** — install the backend dependency before running:
+
+```bash
+pip install ultralytics   # required for the default YOLOv8-seg backend
+```
+
 ```bash
 # Segment a directory of images
 bb-run-segmentation \
