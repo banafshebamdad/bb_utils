@@ -20,9 +20,9 @@ follows a ``{split}/{stem}.png`` directory layout.  It handles:
 Mask encoding convention:
   ``1`` = detected instance of a target class (dynamic), ``0`` = background (static).
 
-The runner discovers frames by globbing ``{keypoints_dir}/{split}/*.npz`` and
-loading the corresponding PNG from ``{images_dir}/{split}/{stem}.png``.  This
-means keypoint NPZ files must already exist before running segmentation.
+The runner discovers frames by globbing ``{images_dir}/{split}/*.png`` directly,
+so it can be used as a standalone tool on any image folder without requiring
+keypoint files to be present first.
 
 The runner is idempotent: frames whose mask NPZ already exists are skipped
 unless ``--force`` is passed.
@@ -36,7 +36,6 @@ CLI
 Config schema
 -------------
     data:
-      keypoints_dir:      /path/to/keypoints       # directory containing {split}/*.npz
       images_dir:         /path/to/images          # directory containing {split}/*.png
       semantic_masks_dir: /path/to/masks           # output directory for {split}/*.npz
       splits: [train, val, test]
@@ -160,7 +159,6 @@ def run_for_split(split: str, config: Dict, backend, force: bool = False) -> Dic
     Returns:
         Summary dict with ``"total"``, ``"written"``, ``"skipped"``, ``"failed"``.
     """
-    kp_dir     = Path(config["data"]["keypoints_dir"]) / split
     images_dir = Path(config["data"]["images_dir"]) / split
     out_dir    = Path(config["data"]["semantic_masks_dir"]) / split
 
@@ -168,24 +166,23 @@ def run_for_split(split: str, config: Dict, backend, force: bool = False) -> Dic
     target_classes  = model_cfg.get("target_classes", [0])
     dilation_radius = model_cfg.get("mask_dilation_px", 0) or 0
 
-    kp_files = sorted(kp_dir.glob("*.npz"))
-    if not kp_files:
-        logger.warning("No keypoint files found in %s", kp_dir)
+    image_files = sorted(images_dir.glob("*.png"))
+    if not image_files:
+        logger.warning("No PNG frames found in %s", images_dir)
         return {"total": 0, "written": 0, "skipped": 0, "failed": 0}
 
-    logger.info("Split %s: %d frames to segment", split, len(kp_files))
+    logger.info("Split %s: %d frames to segment", split, len(image_files))
     n_written = n_skip = n_fail = 0
 
     try:
         from tqdm import tqdm
-        file_iter = tqdm(kp_files, desc=f"  {split}", unit="frame")
+        file_iter = tqdm(image_files, desc=f"  {split}", unit="frame")
     except ImportError:
-        file_iter = kp_files
+        file_iter = image_files
 
-    for kp_path in file_iter:
-        stem = kp_path.stem
-        image_path = images_dir / f"{stem}.png"
-        out_path   = out_dir   / f"{stem}.npz"
+    for image_path in file_iter:
+        stem = image_path.stem
+        out_path = out_dir / f"{stem}.npz"
 
         try:
             written = segment_frame(
@@ -204,7 +201,7 @@ def run_for_split(split: str, config: Dict, backend, force: bool = False) -> Dic
             logger.error("Failed on %s: %s", stem, exc, exc_info=True)
             n_fail += 1
 
-    return {"total": len(kp_files), "written": n_written, "skipped": n_skip, "failed": n_fail}
+    return {"total": len(image_files), "written": n_written, "skipped": n_skip, "failed": n_fail}
 
 
 # ---------------------------------------------------------------------------

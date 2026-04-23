@@ -119,9 +119,9 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ## CLI usage
 
-`bb-run-segmentation` is the primary way to run segmentation at scale.  It
-discovers frames by globbing `{keypoints_dir}/{split}/*.npz`, so
-**`sp-extract-keypoints` must run before `bb-run-segmentation`**.
+`bb-run-segmentation` discovers frames by globbing `{images_dir}/{split}/*.png`
+directly, so it can be used as a standalone tool on any image folder without
+requiring keypoint files to be present first.
 
 ```bash
 # Run all splits defined in the config
@@ -158,7 +158,6 @@ Complete YAML structure:
 
 ```yaml
 data:
-  keypoints_dir:      dataset/incrowdvi/keypoints      # {split}/*.npz files from sp-extract-keypoints
   images_dir:         dataset/incrowdvi/images         # {split}/*.png source frames
   semantic_masks_dir: dataset/incrowdvi/semantic_masks # output directory for mask NPZ files
   splits:             [train, val]                     # default splits when --split is not passed
