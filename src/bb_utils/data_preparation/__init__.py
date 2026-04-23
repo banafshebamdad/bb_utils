@@ -8,7 +8,7 @@ from .world_coords_cache import (
     discover_sequences,
     run_split,
 )
-from .segmentation_runner import segment_frame, run_for_split
+from .segmentation_runner import segment_frame, run_on_dir
 
 __all__ = [
     'organize_3d_observations',
