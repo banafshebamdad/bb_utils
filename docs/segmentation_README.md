@@ -138,7 +138,39 @@ facebook/mask2former-swin-tiny-coco-instance    # fastest
 facebook/mask2former-swin-small-coco-instance
 facebook/mask2former-swin-base-coco-instance
 facebook/mask2former-swin-large-coco-instance   # most accurate
+
+facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 ```
+
+> **Note: panoptic checkpoint and safetensors workaround**
+>
+> `facebook/mask2former-swin-large-coco-panoptic` (and other panoptic checkpoints)
+> ship only `pytorch_model.bin`, not `model.safetensors`.
+> Since `transformers` ≥ 5.6 blocks loading `.bin` files with `torch` < 2.6
+> (CVE-2025-32434), using the Hub ID directly will fail unless torch is upgraded.
+>
+> **Workaround** — download the safetensors weights from the model's open
+> [PR#3](https://huggingface.co/facebook/mask2former-swin-large-coco-panoptic/discussions/3)
+> and point `model_name` at the local directory:
+>
+> ```python
+> from huggingface_hub import snapshot_download
+> snapshot_download(
+>     "facebook/mask2former-swin-large-coco-panoptic",
+>     revision="refs/pr/3",
+>     local_dir="~/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors",
+>     ignore_patterns=["*.bin", "*.msgpack", "flax_model*"],
+> )
+> ```
+>
+> Then in the config:
+>
+> ```yaml
+> model_name: "/home/ubuntu/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors"
+> segmentation_type: "panoptic"
+> ```
+>
+> This is machine-specific. The permanent fix is to upgrade torch to ≥ 2.6.
 
 **Example config:**
 

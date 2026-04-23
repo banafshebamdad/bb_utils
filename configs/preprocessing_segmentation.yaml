@@ -13,8 +13,8 @@ model:
   backend:              "mask2former" # "yolo"
   model_name:           "/home/ubuntu/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors" # "facebook/mask2former-swin-large-coco-panoptic" # "facebook/mask2former-swin-large-coco-instance" # "yolov8n-seg"
   device:               "cuda"
-  confidence_threshold: 0.6 # 0.25   # required — minimum detection confidence in (0, 1)
-  iou_threshold:        0.50   # required — NMS IoU threshold in (0, 1)
-  target_classes:       [0]    # COCO class 0 = person
-  mask_dilation_px:     5      # dilation radius in pixels; 0 = no dilation
-  segmentation_type:    "panoptic" # "instance" or "panoptic"; only used for Mask2Former backend
+  confidence_threshold: 0.6    # [yolo + mask2former] minimum detection confidence in (0, 1)
+  iou_threshold:        0.50   # [yolo only]          NMS IoU threshold in (0, 1); ignored by mask2former
+  target_classes:       [0]    # [yolo + mask2former] COCO class IDs to include; 0 = person
+  mask_dilation_px:     0      # [yolo + mask2former] dilation radius in pixels; 0 = no dilation
+  segmentation_type:    "panoptic" # [mask2former only]   "instance" or "panoptic"; ignored by yolo
