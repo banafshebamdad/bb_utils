@@ -166,23 +166,11 @@ facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 > Then in the config:
 >
 > ```yaml
-> model_name: "/home/ubuntu/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors"
+> model_name: "~/.cache/huggingface/hub/mask2former-swin-large-coco-panoptic-safetensors"
 > segmentation_type: "panoptic"
 > ```
 >
 > This is machine-specific. The permanent fix is to upgrade torch to ≥ 2.6.
-
-**Example config:**
-
-```yaml
-model:
-  backend:              "mask2former"
-  model_name:           "facebook/mask2former-swin-tiny-coco-instance"
-  device:               "cuda"
-  confidence_threshold: 0.5
-  target_classes:       [0]   # COCO class 0 = person
-  mask_dilation_px:     3
-```
 
 ---
 
@@ -235,33 +223,6 @@ CLI flags:
 | `--force` | no | Overwrite existing mask NPZ files |
 | `--dry-run` | no | Log config summary and exit without running inference |
 | `--verbose` | no | Enable DEBUG-level logging |
-
----
-
-## Config format
-
-`create_backend(config)` reads the `model` section of the pipeline config dict.
-The CLI (`bb-run-segmentation`) takes paths directly as `--images-dir` and
-`--output-dir` flags, so the config only needs to contain model settings.
-
-Complete YAML structure:
-
-```yaml
-model:
-  backend:              yolo
-  model_name:           yolov8n-seg   # any Ultralytics *-seg model name or local path
-  device:               cuda          # "cpu", "cuda", or "cuda:0"
-  confidence_threshold: 0.25         # required — minimum detection confidence in (0, 1)
-  iou_threshold:        0.45         # required — NMS IoU threshold in (0, 1)
-  target_classes:       [0]          # COCO class 0 = person
-  mask_dilation_px:     5            # required — dilation radius in pixels; 0 = no dilation
-```
-
-All keys marked *required* have no hardcoded fallback; the pipeline raises a
-clear error at startup if they are left as `null`.
-
-The example config file for InCrowd-VI is at
-[bb_utils/configs/preprocessing_segmentation.yaml](../configs/preprocessing_segmentation.yaml).
 
 ---
 
