@@ -1,16 +1,9 @@
 # World-Coordinate Cache Builder
 
-`bb_utils.data_preparation.world_coords_cache` provides a generic,
-project-independent utility for converting Aria MPS semidense point cloud CSV
-files into compact NumPy NPZ caches that map each global UID to its 3-D world
+`bb_utils.data_preparation.world_coords_cache` provides a generic, project-independent utility for converting Meta Aria Project MPS semidense point cloud CSV files into compact NumPy NPZ caches that map each global UID to its 3-D world
 coordinates.
 
-The module contains **no project-specific logic**.  All paths are passed
-explicitly so it can be reused across any Aria MPS dataset.
-
-It ships with a standalone CLI (`bb-cache-world-coords`) that can be run
-directly without any project config file, and is also used internally by
-sp-score via `bb_utils.data_preparation.world_coords_cache.run_split`.
+It ships with a standalone CLI (`bb-cache-world-coords`) that can be run directly without any project config file.
 
 ---
 
@@ -33,11 +26,11 @@ sp-score via `bb_utils.data_preparation.world_coords_cache.run_split`.
 
 ## Purpose
 
-The Aria MPS semidense SLAM pipeline outputs two gzipped CSV files per
+The Meta Aria MPS semidense SLAM pipeline outputs two gzipped CSV files per
 recording sequence:
 
-- `*_semidense_points.csv.gz` — 3-D world positions of tracked points
-- `*_semidense_observations.csv.gz` — per-frame 2-D observations of those points
+- `*semidense_points.csv.gz`: 3D world positions of tracked points
+- `*semidense_observations.csv.gz`: per-frame 2D observations of those points
 
 Loading and joining these files at runtime for every pipeline run is slow.
 This module pre-builds a compact NPZ cache (`uid → xyz`) from the points CSV
@@ -48,26 +41,29 @@ a simple dictionary, without reading the large CSV again.
 
 ## CLI usage
 
-`raw_3d_observations` is the output directory created by the [3D Observation Organizer](https://github.com/banafshebamdad/bb_utils/blob/main/README.md#3d-observation-organizer) (`bb-organize-3d-obs`).
+**Note**: `raw_3d_observations` is the output directory created by the [3D Observation Organizer](https://github.com/banafshebamdad/bb_utils/blob/main/README.md#3d-observation-organizer) (`bb-organize-3d-obs`).
 
 ```bash
 # Cache one split
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
-  --split train
+  --split train \
+  --verbose
 
 # Cache multiple splits at once
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
-  --split train --split val
+  --split train --split val \
+  --verbose
 
 # Rebuild even if cache already exists
 bb-cache-world-coords \
-  --raw-3d-dir /home/ubuntu/raw_3d_observations \
+  --raw-3d-dir /path/to/raw_3d_observations \
   --output-dir dataset/incrowdvi/world_coords \
-  --split train --force
+  --split train --force \
+  --verbose
 ```
 
 CLI flags:
