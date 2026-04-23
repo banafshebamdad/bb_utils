@@ -213,18 +213,32 @@ Use the bundled example script to overlay a sample of masks on their source
 frames and save the blended PNGs for manual inspection:
 
 ```bash
+# Default: 20 frames spread across zero/sparse/medium/dense density buckets
 python evaluation/segmentation_spotcheck.py \
   --masks-dir  dataset/incrowdvi/semantic_masks/train \
   --images-dir dataset/incrowdvi/frames/train \
   --output-dir logs/mask_spotcheck
+
+# Custom sample size, random seed, and overlay opacity
+python evaluation/segmentation_spotcheck.py \
+  --masks-dir  dataset/incrowdvi/semantic_masks/train \
+  --images-dir dataset/incrowdvi/frames/train \
+  --output-dir logs/mask_spotcheck \
+  --n-frames 40 \
+  --seed 123 \
+  --alpha 0.5
 ```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--n-frames` | `20` | Total frames to sample, spread evenly across the four buckets |
+| `--seed` | `42` | Random seed for reproducible sampling |
+| `--alpha` | `0.45` | Opacity of the red mask overlay (0 = invisible, 1 = solid) |
 
 Frames are drawn from four density buckets (`zero`, `sparse`, `medium`,
 `dense`) so both empty scenes and heavily masked frames are always represented.
 Output filenames encode the bucket and density value, e.g.
-`dense_d0.45_Kiko_loop_R_1058664352.png`.  See
-[`evaluation/segmentation_spotcheck.py`](../evaluation/segmentation_spotcheck.py)
-for all options (`--n-frames`, `--seed`, `--alpha`).
+`dense_d0.45_Kiko_loop_R_1058664352.png`.
 
 ---
 
