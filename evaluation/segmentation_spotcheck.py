@@ -1,5 +1,5 @@
 #
-# File: examples/segmentation_spotcheck_example.py
+# File: evaluation/segmentation_spotcheck.py
 # Author: Banafshe Bamdad + GitHub Copilot (Claude Sonnet 4.6)
 # Created: 2026-04-23 CET
 #
@@ -24,13 +24,13 @@ Each output filename is prefixed with its bucket and density value, e.g.:
 
 Usage
 -----
-    python examples/segmentation_spotcheck_example.py \\
-        --masks-dir  dataset/incrowdvi/semantic_masks/train \\
-        --images-dir dataset/incrowdvi/frames/train \\
+    python evaluation/segmentation_spotcheck.py \
+        --masks-dir  dataset/incrowdvi/semantic_masks/train \
+        --images-dir dataset/incrowdvi/frames/train \
         --output-dir logs/mask_spotcheck
 
     # Custom sample size and seed
-    python examples/segmentation_spotcheck_example.py \\
+    python evaluation/segmentation_spotcheck.py \
         --masks-dir  dataset/incrowdvi/semantic_masks/train \\
         --images-dir dataset/incrowdvi/frames/train \\
         --output-dir logs/mask_spotcheck \\

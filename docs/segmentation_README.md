@@ -213,7 +213,7 @@ Use the bundled example script to overlay a sample of masks on their source
 frames and save the blended PNGs for manual inspection:
 
 ```bash
-python examples/segmentation_spotcheck_example.py \
+python evaluation/segmentation_spotcheck.py \
   --masks-dir  dataset/incrowdvi/semantic_masks/train \
   --images-dir dataset/incrowdvi/frames/train \
   --output-dir logs/mask_spotcheck
@@ -223,7 +223,7 @@ Frames are drawn from four density buckets (`zero`, `sparse`, `medium`,
 `dense`) so both empty scenes and heavily masked frames are always represented.
 Output filenames encode the bucket and density value, e.g.
 `dense_d0.45_Kiko_loop_R_1058664352.png`.  See
-[`examples/segmentation_spotcheck_example.py`](../examples/segmentation_spotcheck_example.py)
+[`evaluation/segmentation_spotcheck.py`](../evaluation/segmentation_spotcheck.py)
 for all options (`--n-frames`, `--seed`, `--alpha`).
 
 ---
