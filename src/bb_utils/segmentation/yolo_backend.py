@@ -123,3 +123,13 @@ class YoloBackend(SegmentationBackend):
             mask = np.bitwise_or(mask, inst_mask_bin)
 
         return self._validate_output(mask, expected_shape)
+
+    @classmethod
+    def from_config(cls, model_cfg: dict) -> "YoloBackend":
+        """Instantiate from a ``model`` config dict section."""
+        return cls(
+            model_name=model_cfg.get("model_name", "yolov8n-seg"),
+            device=model_cfg.get("device", "cpu"),
+            confidence_threshold=model_cfg.get("confidence_threshold"),
+            iou_threshold=model_cfg.get("iou_threshold"),
+        )

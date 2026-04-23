@@ -11,6 +11,7 @@
 - [Architecture](#architecture)
 - [Available backends](#available-backends)
   - [YoloBackend](#yolobackend)
+  - [Mask2FormerBackend](#mask2formerbackend)
 - [CLI usage](#cli-usage)
 - [Config format](#config-format)
 - [Output files](#output-files)
@@ -102,12 +103,64 @@ YOLOv8 weights (COCO): class `0` = `person`.
 
 ---
 
+### Mask2FormerBackend
+
+**Module**: `bb_utils.segmentation.mask2former_backend`  
+**Config key**: `"mask2former"`  
+**Dependencies**: `transformers`, `torch` (`pip install transformers torch`)
+
+Wraps [HuggingFace Mask2Former](https://huggingface.co/docs/transformers/model_doc/mask2former) for instance or panoptic segmentation. Any `Mask2FormerForUniversalSegmentation` checkpoint from the HuggingFace Hub is supported. Weights are downloaded automatically on first use.
+
+**Class indices** follow COCO (same convention as YOLOv8-seg): class `0` = `person`.
+
+**Inference flow:**
+
+1. Preprocess image via `AutoImageProcessor`; run model forward pass.
+2. Post-process via `post_process_instance_segmentation` or `post_process_panoptic_segmentation` depending on `segmentation_type`.
+3. For each segment whose `label_id` is in `target_classes` and score ≥ `confidence_threshold`, merge it into the output mask via bitwise OR.
+
+**Config keys** (all under `model:`):
+
+| Key | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `backend` | str | yes | — | Must be `"mask2former"` |
+| `model_name` | str | no | `"facebook/mask2former-swin-tiny-coco-instance"` | HuggingFace repo ID or local path |
+| `device` | str | no | `"cpu"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
+| `confidence_threshold` | float | no | `0.5` | Minimum prediction score (0, 1) |
+| `segmentation_type` | str | no | auto | `"instance"` or `"panoptic"` — auto-detected from `model_name` |
+
+`iou_threshold` is not used (Mask2Former does not apply NMS).
+
+**Recommended checkpoints for pedestrian masking:**
+
+```
+facebook/mask2former-swin-tiny-coco-instance    # fastest
+facebook/mask2former-swin-small-coco-instance
+facebook/mask2former-swin-base-coco-instance
+facebook/mask2former-swin-large-coco-instance   # most accurate
+```
+
+**Example config:**
+
+```yaml
+model:
+  backend:              "mask2former"
+  model_name:           "facebook/mask2former-swin-tiny-coco-instance"
+  device:               "cuda"
+  confidence_threshold: 0.5
+  target_classes:       [0]   # COCO class 0 = person
+  mask_dilation_px:     3
+```
+
+---
+
 ## CLI usage
 
 **Prerequisites**: install the backend dependency before running:
 
 ```bash
-pip install ultralytics   # required for the default YOLOv8-seg backend
+pip install ultralytics          # required for YoloBackend (default)
+pip install transformers torch   # required for Mask2FormerBackend
 ```
 
 ```bash
@@ -328,8 +381,10 @@ No changes are required in `segmentation_runner.py` (`bb_utils.data_preparation`
 |---|---|---|
 | `numpy` | all modules | `pip install numpy` |
 | `ultralytics` | `YoloBackend` | `pip install ultralytics` |
+| `transformers` | `Mask2FormerBackend` | `pip install transformers` |
+| `torch` | `Mask2FormerBackend` | `pip install torch` |
 | `scipy` | `dilate_mask` (optional) | `pip install scipy` |
-| `Pillow` | `resize_mask` (optional) | `pip install Pillow` |
+| `Pillow` | `resize_mask`, `Mask2FormerBackend` (optional) | `pip install Pillow` |
 
 `scipy` and `Pillow` are optional: both `dilate_mask` and `resize_mask` fall
 back to pure-numpy implementations when they are not installed, at a small

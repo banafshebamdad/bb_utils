@@ -16,7 +16,8 @@ Usage::
 
 The ``config["model"]["backend"]`` key selects the implementation.
 Currently registered backends:
-  ``"yolo"``  — ``YoloBackend`` (Ultralytics YOLOv8-seg)
+  ``"yolo"``         — ``YoloBackend`` (Ultralytics YOLOv8/11-seg)
+  ``"mask2former"``  — ``Mask2FormerBackend`` (HuggingFace Mask2Former)
 
 New backends can be registered via ``register_backend(name, cls)``.
 """
@@ -75,20 +76,22 @@ def create_backend(config: Dict) -> SegmentationBackend:
 
 
 def _instantiate(cls: Type[SegmentationBackend], model_cfg: Dict) -> SegmentationBackend:
-    """Instantiate *cls* from *model_cfg*, mapping config keys to constructor args."""
-    return cls(
-        model_name=model_cfg.get("model_name", "yolov8n-seg"),
-        device=model_cfg.get("device", "cpu"),
-        confidence_threshold=model_cfg.get("confidence_threshold"),
-        iou_threshold=model_cfg.get("iou_threshold"),
-    )
+    """Instantiate *cls* from *model_cfg* via its ``from_config`` classmethod."""
+    if not hasattr(cls, "from_config"):
+        raise RuntimeError(
+            f"{cls.__name__} does not implement 'from_config(model_cfg)'. "
+            "All backends must provide this classmethod."
+        )
+    return cls.from_config(model_cfg)
 
 
 # Register built-in backends lazily to avoid importing heavy dependencies
 # at module load time.
 def _register_builtin_backends() -> None:
     from bb_utils.segmentation.yolo_backend import YoloBackend
+    from bb_utils.segmentation.mask2former_backend import Mask2FormerBackend
     register_backend("yolo", YoloBackend)
+    register_backend("mask2former", Mask2FormerBackend)
 
 
 _register_builtin_backends()

@@ -11,7 +11,7 @@
 #
 model:
   backend:              "yolo"
-  model_name:           "yolov8n-seg"
+  model_name:           "yolo11n-seg" # "yolov8n-seg"
   device:               "cuda"
   confidence_threshold: 0.25   # required — minimum detection confidence in (0, 1)
   iou_threshold:        0.50   # required — NMS IoU threshold in (0, 1)

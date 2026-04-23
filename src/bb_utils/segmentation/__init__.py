@@ -23,7 +23,9 @@ factory
     ``create_backend(config)`` — instantiates the backend selected by
     ``config["model"]["backend"]``.
 yolo_backend
-    ``YoloBackend`` — wraps Ultralytics YOLOv8-seg (instance segmentation).
+    ``YoloBackend`` — wraps Ultralytics YOLOv8/11-seg (instance segmentation).
+mask2former_backend
+    ``Mask2FormerBackend`` — wraps HuggingFace Mask2Former (instance/panoptic).
 utils
     ``dilate_mask``, ``union_masks``, ``resize_mask`` — mask post-processing
     utilities used by callers (e.g. ``segmentation_runner.py`` in sp-score).
