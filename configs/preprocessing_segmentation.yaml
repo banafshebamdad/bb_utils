@@ -15,6 +15,7 @@ model:
   device:               "cuda"
   confidence_threshold: 0.6    # [yolo + mask2former] minimum detection confidence in (0, 1)
   iou_threshold:        0.50   # [yolo only]          NMS IoU threshold in (0, 1); ignored by mask2former
+  mask_threshold:       0.50   # [yolo only]          pixel-level mask binarization threshold in (0, 1); default 0.5; ignored by mask2former
   target_classes:       [0]    # [yolo + mask2former] COCO class IDs to include; 0 = person
   mask_dilation_px:     0      # [yolo + mask2former] dilation radius in pixels; 0 = no dilation
   segmentation_type:    "panoptic" # [mask2former only]   "instance" or "panoptic"; ignored by yolo

@@ -27,6 +27,7 @@ Config keys read by this backend (via ``YoloBackend.__init__``)
   ``device``                str   — "cuda", "cpu", or "cuda:0" etc.
   ``confidence_threshold``  float — required; minimum detection confidence
   ``iou_threshold``         float — required; NMS IoU threshold
+  ``mask_threshold``        float — optional; pixel-level mask binarization threshold (default 0.5)
 """
 
 import logging
@@ -47,6 +48,8 @@ class YoloBackend(SegmentationBackend):
         device:               Inference device string (``"cuda"``, ``"cpu"``).
         confidence_threshold: Minimum detection confidence in (0, 1).
         iou_threshold:        NMS IoU threshold in (0, 1).
+        mask_threshold:       Pixel-level binarization threshold applied to the
+                              float instance mask output (0, 1). Default ``0.5``.
     """
 
     def __init__(
@@ -55,15 +58,17 @@ class YoloBackend(SegmentationBackend):
         device: str,
         confidence_threshold: float,
         iou_threshold: float,
+        mask_threshold: float = 0.5,
     ) -> None:
         if confidence_threshold is None:
             raise ValueError("YoloBackend: 'confidence_threshold' is required (currently null).")
         if iou_threshold is None:
             raise ValueError("YoloBackend: 'iou_threshold' is required (currently null).")
 
-        self._conf  = float(confidence_threshold)
-        self._iou   = float(iou_threshold)
-        self._device = device
+        self._conf           = float(confidence_threshold)
+        self._iou            = float(iou_threshold)
+        self._mask_threshold = float(mask_threshold)
+        self._device         = device
 
         try:
             from ultralytics import YOLO
@@ -116,10 +121,10 @@ class YoloBackend(SegmentationBackend):
             # Resize to input resolution if needed
             if inst_mask.shape != (H, W):
                 from bb_utils.segmentation.utils import resize_mask
-                inst_mask_bin = (inst_mask > 0.5).astype(np.uint8)
+                inst_mask_bin = (inst_mask > self._mask_threshold).astype(np.uint8)
                 inst_mask_bin = resize_mask(inst_mask_bin, (H, W))
             else:
-                inst_mask_bin = (inst_mask > 0.5).astype(np.uint8)
+                inst_mask_bin = (inst_mask > self._mask_threshold).astype(np.uint8)
             mask = np.bitwise_or(mask, inst_mask_bin)
 
         return self._validate_output(mask, expected_shape)
@@ -132,4 +137,5 @@ class YoloBackend(SegmentationBackend):
             device=model_cfg.get("device", "cpu"),
             confidence_threshold=model_cfg.get("confidence_threshold"),
             iou_threshold=model_cfg.get("iou_threshold"),
+            mask_threshold=model_cfg.get("mask_threshold", 0.5),
         )

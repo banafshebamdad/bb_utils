@@ -54,14 +54,12 @@ This will install the package and all dependencies.
 
 See [docs/segmentation_README.md](docs/segmentation_README.md) for full documentation covering:
 - Output contract
-- Available backends (`YoloBackend` — Ultralytics YOLOv8-seg)
+- Available backends
 - Config format
-- Mask utilities (`dilate_mask`, `union_masks`, `resize_mask`)
+- Mask utilities
 - How to add a new backend
 
 ---
-
-
 
 ### NPZ Inspector
 

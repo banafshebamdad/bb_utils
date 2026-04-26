@@ -7,7 +7,6 @@
 ## Table of Contents
 
 - [Output interface](#output-interface)
-- [Package layout](#package-layout)
 - [Architecture](#architecture)
 - [Available backends](#available-backends)
   - [YoloBackend](#yolobackend)
@@ -33,7 +32,7 @@ mask = backend.segment(image, target_classes)
 |---|---|
 | Input `image` | `np.ndarray`, shape `(H, W, 3)`, dtype `uint8`, colour order **RGB** |
 | Input `target_classes` | `List[int]`: model-specific class indices to include |
-| Output `mask` | `np.ndarray`, shape `(H, W)`, dtype `uint8`, values strictly in `{0, 1}` |
+| Output `mask` | `np.ndarray`, shape `(H, W)`, dtype `uint8`, values in `{0, 1}` |
 | Output semantics | `1` = pixel belongs to a detected instance of a target class; `0` = background |
 | No detections | Returns an all-zeros mask (valid result, not an error) |
 | Spatial alignment | `mask[i, j]` corresponds to `image[i, j]`, no spatial transformation applied |
@@ -87,7 +86,7 @@ YOLOv8 weights (COCO): class `0` = `person`.
 1. `model.predict(image_rgb, conf=..., iou=..., device=...)`, runs NMS internally.
 2. For each detected instance whose class is in `target_classes`, extract the
    float instance mask at model resolution.
-3. Threshold at `0.5` → binary; resize to input `(H, W)` with nearest-neighbour
+3. Threshold at `mask_threshold` (default `0.5`) → binary; resize to input `(H, W)` with nearest-neighbour
    if the model output resolution differs.
 4. Accumulate via bitwise OR into the output mask.
 
@@ -100,6 +99,7 @@ YOLOv8 weights (COCO): class `0` = `person`.
 | `device` | str | no | `"cpu"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
 | `confidence_threshold` | float | **yes** | — | Minimum detection confidence (0, 1) |
 | `iou_threshold` | float | **yes** | — | NMS IoU threshold (0, 1) |
+| `mask_threshold` | float | no | `0.5` | Pixel-level binarization threshold applied to the raw float instance mask (0, 1) |
 
 ---
 
