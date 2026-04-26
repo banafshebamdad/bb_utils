@@ -127,7 +127,7 @@ Wraps [HuggingFace Mask2Former](https://huggingface.co/docs/transformers/model_d
 | `model_name` | str | no | `"facebook/mask2former-swin-tiny-coco-instance"` | HuggingFace repo ID or local path |
 | `device` | str | no | `"cpu"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
 | `confidence_threshold` | float | no | `0.5` | Minimum prediction score (0, 1) |
-| `segmentation_type` | str | no | auto | `"instance"` or `"panoptic"` — auto-detected from `model_name` |
+| `segmentation_type` | str | no | auto | `"instance"` or `"panoptic"`, auto-detected from `model_name` |
 
 `iou_threshold` is not used (Mask2Former does not apply NMS).
 
@@ -149,7 +149,7 @@ facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 > Since `transformers` ≥ 5.6 blocks loading `.bin` files with `torch` < 2.6
 > (CVE-2025-32434), using the Hub ID directly will fail unless torch is upgraded.
 >
-> **Workaround** — download the safetensors weights from the model's open
+> **Workaround**: download the safetensors weights from the model's open
 > [PR#3](https://huggingface.co/facebook/mask2former-swin-large-coco-panoptic/discussions/3)
 > and point `model_name` at the local directory:
 >
@@ -240,9 +240,7 @@ Each file contains a single array:
 |---|---|---|---|
 | `mask` | `uint8` | `(H, W)` | `1` = detected pedestrian pixel; `0` = static background |
 
-The mask is in the same pixel space as the source image (no spatial
-transformation applied).  `mask_dilation_px` is applied before writing to
-compensate for boundary inaccuracy in fisheye frames.
+The mask is in the same pixel space as the source image (no spatial transformation applied).
 
 Loading a mask:
 
@@ -297,7 +295,6 @@ accept and return `uint8 (H, W)` masks with values in `{0, 1}`.
 ### `dilate_mask(mask, radius)`
 
 Morphological dilation by a circular structuring element of `radius` pixels.
-Used to compensate for boundary inaccuracy in fisheye segmentation.
 
 - Uses `scipy.ndimage.binary_dilation` when available; falls back to a
   pure-numpy iterative approach.
