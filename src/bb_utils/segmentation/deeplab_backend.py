@@ -43,14 +43,16 @@ All branches are concatenated and projected back to `aspp_channels`.
 
 Pretrained weights
 ------------------
-Pass ``pretrained_weights="coco_voc"`` to load torchvision's official
-DeepLabV3 ResNet backbone and ASPP weights (trained on COCO, evaluated on
-Pascal VOC).  The decoder is always randomly initialised (the DeepLabV3
-baseline has no decoder; the decoder weights come from fine-tuning or a
-custom checkpoint).
+``pretrained_weights="coco_voc"`` loads **torchvision's fully-pretrained
+DeepLabV3** model (backbone + ASPP + classifier head, all pretrained on COCO
+and fine-tuned on Pascal VOC).  In this mode the torchvision DeepLabV3 model
+is used directly — no custom decoder is involved, so inference works
+out-of-the-box with no fine-tuning required.
 
-To load a fully custom checkpoint (backbone + ASPP + decoder) saved as a
-PyTorch state-dict:
+To use the full DeepLabv3+ architecture (backbone + ASPP + decoder) with
+custom weights, save the state-dict of a fine-tuned
+:class:`_DeepLabV3PlusModel` to a ``.pth`` file and point
+``pretrained_weights`` at that path.
 
     pretrained_weights: "/path/to/deeplab_plus.pth"
 
@@ -90,10 +92,14 @@ Config keys (all under ``model:``)
 -----------------------------------
   ``backbone``          str   — ``"resnet50"`` or ``"resnet101"``.
                                 Default: ``"resnet101"``.
-  ``pretrained_weights``str   — ``"coco_voc"`` to load torchvision pretrained
-                                weights; an absolute path to a ``.pth`` file to
-                                load a custom checkpoint; or ``null`` for random
-                                initialisation.  Default: ``"coco_voc"``.
+  ``pretrained_weights``str   — ``"coco_voc"`` to load the complete torchvision
+                                pretrained DeepLabV3 model (backbone + ASPP +
+                                classifier head, fully trained — no random
+                                decoder); an absolute path to a ``.pth``
+                                state-dict to load a custom DeepLabv3+
+                                checkpoint (backbone + ASPP + decoder); or
+                                ``null`` for random initialisation.
+                                Default: ``"coco_voc"``.
   ``device``            str   — ``"cuda"``, ``"cpu"``, or ``"cuda:0"``.
                                 Default: ``"cpu"``.
   ``num_classes``       int   — Number of output classes.  Default: ``21``
@@ -483,6 +489,70 @@ def _ensure_nn_modules() -> None:
 # Weight loading helpers
 # ---------------------------------------------------------------------------
 
+def _load_full_tv_model(backbone_name: str, num_classes: int):
+    """Load the complete, fully-pretrained torchvision DeepLabV3 model.
+
+    Unlike :func:`_load_torchvision_pretrained`, which only transfers backbone
+    and ASPP weights into the custom :class:`_DeepLabV3PlusModel` (leaving the
+    decoder randomly initialised), this function returns the **entire**
+    torchvision ``DeepLabV3`` object — backbone + ASPP + classifier head —
+    with all weights pretrained.  This is the correct model to use when
+    ``pretrained_weights="coco_voc"`` because it produces meaningful
+    predictions immediately, without any fine-tuning.
+
+    The torchvision model's ``forward`` returns an ``OrderedDict`` with key
+    ``"out"`` containing the logit tensor of shape ``(B, num_classes, H, W)``.
+    :class:`DeepLabBackend` handles this automatically via its
+    ``_is_tv_model`` flag.
+
+    Args:
+        backbone_name: ``"resnet50"`` or ``"resnet101"``.
+        num_classes:   Must be 21 for the COCO/VOC pretrained weights.
+
+    Returns:
+        Fully-pretrained ``torchvision.models.segmentation.DeepLabV3`` model
+        in eval mode (not yet moved to device).
+
+    Raises:
+        RuntimeError:  If torchvision is unavailable or the download fails.
+        ValueError:    If ``backbone_name`` is not supported or ``num_classes``
+                       is not 21 (the pretrained head has 21 output classes).
+    """
+    if num_classes != 21:
+        raise ValueError(
+            f"pretrained_weights='coco_voc' requires num_classes=21 "
+            f"(Pascal VOC label space), got {num_classes}.  "
+            "Set num_classes=21 or use a custom .pth checkpoint."
+        )
+
+    entry = _COCO_VOC_PRETRAINS.get(backbone_name)
+    if entry is None:
+        raise ValueError(
+            f"No torchvision COCO/VOC pretrained weights for backbone "
+            f"'{backbone_name}'.  Supported: {sorted(_COCO_VOC_PRETRAINS)}."
+        )
+
+    _pkg, fn_name, weights_str = entry
+    try:
+        import torchvision.models.segmentation as tv_seg
+        from torchvision.models import get_weight
+    except ImportError as exc:
+        raise RuntimeError(
+            "torchvision is required to load pretrained weights. "
+            "Install with: pip install torchvision"
+        ) from exc
+
+    weights = get_weight(weights_str)
+    model = getattr(tv_seg, fn_name)(weights=weights)
+    model.eval()
+    logger.info(
+        "DeepLabBackend: loaded complete torchvision '%s' "
+        "(backbone + ASPP + classifier head, fully pretrained).",
+        fn_name,
+    )
+    return model
+
+
 def _load_torchvision_pretrained(
     model: "_DeepLabV3PlusModel",  # type: ignore[name-defined]
     backbone_name: str,
@@ -575,26 +645,34 @@ def _load_torchvision_pretrained(
 class DeepLabBackend(SegmentationBackend):
     """Semantic segmentation backend using DeepLabv3+ with an ASPP module.
 
-    Wraps a custom DeepLabv3+ model (:class:`ASPP` + decoder on a ResNet
-    backbone) and returns binary masks in the common ``SegmentationBackend``
-    format.
+    Two operational modes depending on ``pretrained_weights``:
+
+    * ``pretrained_weights="coco_voc"`` (default): wraps the **complete**
+      torchvision DeepLabV3 model (backbone + ASPP + classifier head, all
+      weights pretrained on COCO/VOC).  No decoder is used; the model
+      produces useful predictions immediately.  This is the recommended
+      mode for pedestrian segmentation with ``target_classes=[15]``.
+
+    * ``pretrained_weights="/path/to/checkpoint.pth"`` or ``None``: builds
+      the full custom DeepLabv3+ (backbone + ASPP + decoder) and loads the
+      provided state-dict (or uses random initialisation).  Use this mode
+      when you have a fine-tuned checkpoint that includes decoder weights.
 
     Args:
         backbone:           ``"resnet50"`` or ``"resnet101"`` (default).
-        pretrained_weights: ``"coco_voc"`` to load torchvision pretrained
-                            weights; a path string to a ``.pth`` state-dict
-                            file to load a custom checkpoint; ``None`` for
-                            random initialisation.
+        pretrained_weights: ``"coco_voc"`` to use the complete pretrained
+                            torchvision DeepLabV3; a path string to a ``.pth``
+                            state-dict to load a custom DeepLabv3+ checkpoint;
+                            ``None`` for random initialisation.
         device:             Inference device (``"cuda"``, ``"cpu"``).
         num_classes:        Number of output classes (default 21 for COCO/VOC).
-        atrous_rates:       Three ASPP dilation rates (default ``(12, 24, 36)``
-                            matching torchvision pretrained output_stride=8).
+                            Must be 21 when ``pretrained_weights="coco_voc"``.
+        atrous_rates:       Three ASPP dilation rates (default ``(12, 24, 36)``).
+                            Only used for the custom model path.
         aspp_channels:      ASPP output channels (default 256).
-        segmentation_mode:  ``"argmax"`` (default) – foreground where the
-                            winning class is in ``target_classes``; or
-                            ``"threshold"`` – foreground where the max softmax
-                            probability for any target class ≥ ``mask_threshold``.
-        mask_threshold:     Confidence threshold used in ``"threshold"`` mode
+                            Only used for the custom model path.
+        segmentation_mode:  ``"argmax"`` (default) or ``"threshold"``.
+        mask_threshold:     Confidence threshold for ``"threshold"`` mode
                             (default 0.5).
     """
 
@@ -609,63 +687,74 @@ class DeepLabBackend(SegmentationBackend):
         segmentation_mode: str = "argmax",
         mask_threshold: float = 0.5,
     ) -> None:
-        _ensure_nn_modules()
-
         import torch
 
-        self._device   = device
-        self._seg_mode = segmentation_mode
-        self._thresh   = float(mask_threshold)
-        self._torch    = torch
+        self._device    = device
+        self._seg_mode  = segmentation_mode
+        self._thresh    = float(mask_threshold)
+        self._torch     = torch
+        # Tracks whether self._model is a torchvision DeepLabV3 (returns a
+        # dict with key "out") vs. the custom _DeepLabV3PlusModel (returns
+        # a plain tensor).
+        self._is_tv_model = False
 
-        try:
-            self._model = _DeepLabV3PlusModel(  # type: ignore[operator]
-                backbone_name=backbone,
-                num_classes=num_classes,
-                aspp_channels=aspp_channels,
-                atrous_rates=tuple(atrous_rates),
-            )
-        except Exception as exc:
-            raise RuntimeError(
-                f"Failed to build DeepLabV3+ model "
-                f"(backbone={backbone!r}): {exc}"
-            ) from exc
-
-        if pretrained_weights is None or pretrained_weights == "":
-            logger.info(
-                "DeepLabBackend: using randomly initialised weights."
-            )
-        elif pretrained_weights == "coco_voc":
-            _load_torchvision_pretrained(self._model, backbone)
-        elif isinstance(pretrained_weights, str):
-            # Treat as a path to a .pth state-dict file.
+        if pretrained_weights == "coco_voc":
+            # Use the complete, fully-pretrained torchvision model.
+            # The custom decoder is NOT built or used in this path.
             try:
-                sd = torch.load(
-                    pretrained_weights,
-                    map_location="cpu",
-                    weights_only=True,
-                )
-                self._model.load_state_dict(sd, strict=True)
-                logger.info(
-                    "DeepLabBackend: loaded custom checkpoint '%s'.",
-                    pretrained_weights,
+                self._model = _load_full_tv_model(backbone, num_classes)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to load torchvision DeepLabV3 "
+                    f"(backbone={backbone!r}): {exc}"
+                ) from exc
+            self._is_tv_model = True
+        else:
+            # Custom DeepLabv3+ with decoder (backbone + ASPP + decoder).
+            _ensure_nn_modules()
+            try:
+                self._model = _DeepLabV3PlusModel(  # type: ignore[operator]
+                    backbone_name=backbone,
+                    num_classes=num_classes,
+                    aspp_channels=aspp_channels,
+                    atrous_rates=tuple(atrous_rates),
                 )
             except Exception as exc:
                 raise RuntimeError(
-                    f"Failed to load DeepLabV3+ checkpoint "
-                    f"'{pretrained_weights}': {exc}"
+                    f"Failed to build DeepLabV3+ model "
+                    f"(backbone={backbone!r}): {exc}"
                 ) from exc
-        else:
-            raise ValueError(
-                f"Unsupported pretrained_weights value: {pretrained_weights!r}. "
-                "Use 'coco_voc', a path to a .pth file, or None."
-            )
+
+            if pretrained_weights is None or pretrained_weights == "":
+                logger.info("DeepLabBackend: using randomly initialised weights.")
+            elif isinstance(pretrained_weights, str):
+                try:
+                    sd = torch.load(
+                        pretrained_weights,
+                        map_location="cpu",
+                        weights_only=True,
+                    )
+                    self._model.load_state_dict(sd, strict=True)
+                    logger.info(
+                        "DeepLabBackend: loaded custom checkpoint '%s'.",
+                        pretrained_weights,
+                    )
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Failed to load DeepLabV3+ checkpoint "
+                        f"'{pretrained_weights}': {exc}"
+                    ) from exc
+            else:
+                raise ValueError(
+                    f"Unsupported pretrained_weights value: {pretrained_weights!r}. "
+                    "Use 'coco_voc', a path to a .pth file, or None."
+                )
 
         self._model.eval()
         self._model.to(device)
         logger.info(
-            "DeepLabBackend: ready (backbone=%s, device=%s, mode=%s).",
-            backbone, device, segmentation_mode,
+            "DeepLabBackend: ready (backbone=%s, tv_model=%s, device=%s, mode=%s).",
+            backbone, self._is_tv_model, device, segmentation_mode,
         )
 
     # ------------------------------------------------------------------
@@ -705,7 +794,10 @@ class DeepLabBackend(SegmentationBackend):
         tensor = tensor.to(self._device)
 
         with torch.no_grad():
-            logits = self._model(tensor)  # (1, num_classes, H, W)
+            out = self._model(tensor)
+            # torchvision DeepLabV3 returns an OrderedDict {"out": tensor, ...};
+            # the custom _DeepLabV3PlusModel returns a plain tensor.
+            logits = out["out"] if self._is_tv_model else out  # (1, num_classes, H, W)
 
         logits_np = logits.squeeze(0).cpu().numpy()  # (num_classes, H, W)
 

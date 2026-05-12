@@ -182,10 +182,33 @@ facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 **Dependencies**: `torch`, `torchvision` (`pip install torch torchvision`)
 
 Custom DeepLabv3+ implementation with an explicit **ASPP (Atrous Spatial
-Pyramid Pooling)** module.  Uses a dilated-ResNet backbone followed by the
-ASPP module and a lightweight encoder–decoder ("+" component).
+Pyramid Pooling)** module.  The backend operates in two modes depending on
+`pretrained_weights`:
 
-**Architecture overview:**
+- **`"coco_voc"` (default)**: uses the **complete, fully-pretrained
+  torchvision DeepLabV3** model (backbone + ASPP + classifier head).  The
+  custom decoder is not built.  Predictions are useful immediately.
+- **Custom `.pth` checkpoint or `null`**: builds the full **DeepLabv3+**
+  model (backbone + ASPP + `_DeepLabV3PlusDecoder`) and loads the provided
+  weights (or random initialisation).
+
+**Architecture (`pretrained_weights: "coco_voc"`):**
+
+```
+Input image
+  │
+  ▼
+ResNet backbone (dilated, output_stride=8)
+  └─► layer4 ──► ASPP ──► (H/8, W/8)
+                    │
+                    ▼
+              classifier head (1×1 conv, 21 classes)
+                    │
+                    ▼
+              logits (H/8, W/8) ──► bilinear upsample ──► (H, W)
+```
+
+**Architecture (custom `.pth` checkpoint — DeepLabv3+ with decoder):**
 
 ```
 Input image
@@ -235,7 +258,8 @@ weights.
 **Inference flow:**
 
 1. Normalise input to ImageNet statistics (mean/std).
-2. Forward pass through backbone → ASPP → decoder → upsample to `(H, W)`.
+2. Forward pass through backbone → ASPP → classifier head (torchvision mode)
+   or backbone → ASPP → decoder (custom checkpoint mode) → upsample to `(H, W)`.
 3a. `segmentation_mode="argmax"` (default): argmax over classes; pixel is
     foreground if the winning class is in `target_classes`.
 3b. `segmentation_mode="threshold"`: softmax; pixel is foreground if the
@@ -247,26 +271,29 @@ weights.
 |---|---|---|---|---|
 | `backend` | str | yes | — | Must be `"deeplab"` |
 | `backbone` | str | no | `"resnet101"` | `"resnet50"` or `"resnet101"` |
-| `pretrained_weights` | str | no | `"coco_voc"` | `"coco_voc"` (torchvision pretrained), path to `.pth` state-dict, or `null` |
+| `pretrained_weights` | str | no | `"coco_voc"` | `"coco_voc"` (complete torchvision pretrained model — fully trained, no random decoder), path to `.pth` state-dict for a custom DeepLabv3+ checkpoint, or `null` |
 | `device` | str | no | `"cpu"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
 | `num_classes` | int | no | `21` | Number of output classes |
-| `atrous_rates` | list | no | `[12, 24, 36]` | Three ASPP dilation rates |
-| `aspp_channels` | int | no | `256` | ASPP output channels |
+| `atrous_rates` | list | no | `[12, 24, 36]` | Three ASPP dilation rates — ignored when `pretrained_weights: "coco_voc"` |
+| `aspp_channels` | int | no | `256` | ASPP output channels — ignored when `pretrained_weights: "coco_voc"` |
 | `segmentation_mode` | str | no | `"argmax"` | `"argmax"` or `"threshold"` |
 | `mask_threshold` | float | no | `0.5` | Confidence threshold for `"threshold"` mode |
 
 **Pretrained weight loading (`pretrained_weights: "coco_voc"`):**
 
-When `pretrained_weights` is `"coco_voc"`, the backend downloads torchvision's
-official `DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1` (or
-`ResNet101`) checkpoint automatically on first use.  The backbone and ASPP
-weights are transferred directly (key structure is intentionally identical to
-torchvision's); the decoder is randomly initialised because the torchvision
-DeepLabV3 baseline has no decoder.
+When `pretrained_weights` is `"coco_voc"`, the backend loads the **complete**
+torchvision `DeepLabV3_ResNet50/101_Weights.COCO_WITH_VOC_LABELS_V1` model
+(backbone + ASPP + classifier head, all fully pretrained).  The torchvision
+model is used directly — the custom decoder is not built and no fine-tuning
+is required.  The model produces useful predictions immediately.
 
-> **Note**: the decoder is randomly initialised in `"coco_voc"` mode.  For
-> best accuracy, fine-tune the full model on a pedestrian dataset and save the
-> resulting state-dict, then point `pretrained_weights` at the `.pth` file.
+The custom decoder (`_DeepLabV3PlusDecoder`) is only used when
+`pretrained_weights` points to a `.pth` state-dict file containing a fully
+fine-tuned DeepLabv3+ checkpoint.
+
+> **Note**: `atrous_rates` and `aspp_channels` are ignored when
+> `pretrained_weights: "coco_voc"` — the torchvision model's architecture
+> is fixed.  These parameters only take effect for custom `.pth` checkpoints.
 
 **Example YAML config for pedestrian segmentation:**
 
