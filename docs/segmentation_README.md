@@ -11,6 +11,7 @@
 - [Available backends](#available-backends)
   - [YoloBackend](#yolobackend)
   - [Mask2FormerBackend](#mask2formerbackend)
+  - [DeepLabBackend](#deeplabbackend)
 - [CLI usage](#cli-usage)
 - [Config format](#config-format)
 - [Output files](#output-files)
@@ -174,6 +175,122 @@ facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 
 ---
 
+### DeepLabBackend
+
+**Module**: `bb_utils.segmentation.deeplab_backend`  
+**Config key**: `"deeplab"`  
+**Dependencies**: `torch`, `torchvision` (`pip install torch torchvision`)
+
+Custom DeepLabv3+ implementation with an explicit **ASPP (Atrous Spatial
+Pyramid Pooling)** module.  Uses a dilated-ResNet backbone followed by the
+ASPP module and a lightweight encoder–decoder ("+" component).
+
+**Architecture overview:**
+
+```
+Input image
+  │
+  ▼
+ResNet backbone (dilated, output_stride=8)
+  ├─► layer1 ──────────────────────────► low-level features (256 ch)
+  │                                            │
+  └─► layer4 ──► ASPP ──► (H/8, W/8)        │
+                    │                           │
+                    ▼                           ▼
+              Decoder (concat + 2× 3×3 conv)──┘
+                    │
+                    ▼
+              logits (H/4, W/4) ──► bilinear upsample ──► (H, W)
+```
+
+The **ASPP** module applies five parallel branches to the high-level feature
+map:
+
+| Branch | Operation | Purpose |
+|---|---|---|
+| 0 | 1×1 conv | Local context |
+| 1 | 3×3 atrous conv, rate=12 | Medium-scale context |
+| 2 | 3×3 atrous conv, rate=24 | Large-scale context |
+| 3 | 3×3 atrous conv, rate=36 | Very large-scale context |
+| 4 | Global avg pool + 1×1 conv | Image-level context |
+
+All five outputs are concatenated and projected to 256 channels.
+
+> The default rates `(12, 24, 36)` match the torchvision pretrained
+> checkpoint (trained with `output_stride=8`).  Use `(6, 12, 18)` for
+> checkpoints trained with `output_stride=16`.
+
+**Class indices** follow the **Pascal VOC label space** (21 classes) used by
+the torchvision COCO pretrained weights — *different from YOLO / Mask2Former*:
+
+| Class ID | Label |
+|---|---|
+| **15** | **person / pedestrian** |
+| 0 | background |
+| 1–14, 16–20 | other VOC categories |
+
+Use `target_classes: [15]` for pedestrian masking with the default pretrained
+weights.
+
+**Inference flow:**
+
+1. Normalise input to ImageNet statistics (mean/std).
+2. Forward pass through backbone → ASPP → decoder → upsample to `(H, W)`.
+3a. `segmentation_mode="argmax"` (default): argmax over classes; pixel is
+    foreground if the winning class is in `target_classes`.
+3b. `segmentation_mode="threshold"`: softmax; pixel is foreground if the
+    max probability for any target class ≥ `mask_threshold`.
+
+**Config keys** (all under `model:`):
+
+| Key | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `backend` | str | yes | — | Must be `"deeplab"` |
+| `backbone` | str | no | `"resnet101"` | `"resnet50"` or `"resnet101"` |
+| `pretrained_weights` | str | no | `"coco_voc"` | `"coco_voc"` (torchvision pretrained), path to `.pth` state-dict, or `null` |
+| `device` | str | no | `"cpu"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
+| `num_classes` | int | no | `21` | Number of output classes |
+| `atrous_rates` | list | no | `[12, 24, 36]` | Three ASPP dilation rates |
+| `aspp_channels` | int | no | `256` | ASPP output channels |
+| `segmentation_mode` | str | no | `"argmax"` | `"argmax"` or `"threshold"` |
+| `mask_threshold` | float | no | `0.5` | Confidence threshold for `"threshold"` mode |
+
+**Pretrained weight loading (`pretrained_weights: "coco_voc"`):**
+
+When `pretrained_weights` is `"coco_voc"`, the backend downloads torchvision's
+official `DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1` (or
+`ResNet101`) checkpoint automatically on first use.  The backbone and ASPP
+weights are transferred directly (key structure is intentionally identical to
+torchvision's); the decoder is randomly initialised because the torchvision
+DeepLabV3 baseline has no decoder.
+
+> **Note**: the decoder is randomly initialised in `"coco_voc"` mode.  For
+> best accuracy, fine-tune the full model on a pedestrian dataset and save the
+> resulting state-dict, then point `pretrained_weights` at the `.pth` file.
+
+**Example YAML config for pedestrian segmentation:**
+
+```yaml
+model:
+  backend: "deeplab"
+  backbone: "resnet101"
+  pretrained_weights: "coco_voc"
+  device: "cpu"
+  num_classes: 21
+  atrous_rates: [12, 24, 36]
+  aspp_channels: 256
+  segmentation_mode: "argmax"
+```
+
+And in the pipeline config:
+
+```yaml
+segmentation:
+  target_classes: [15]   # person in Pascal VOC label space
+```
+
+---
+
 ## CLI usage
 
 **Prerequisites**: install the backend dependency before running:
@@ -181,6 +298,7 @@ facebook/mask2former-swin-large-coco-panoptic   # panoptic; see note below
 ```bash
 pip install ultralytics          # required for YoloBackend (default)
 pip install transformers torch   # required for Mask2FormerBackend
+pip install torch torchvision    # required for DeepLabBackend
 ```
 
 ```bash
@@ -372,7 +490,8 @@ No changes are required in `segmentation_runner.py` (`bb_utils.data_preparation`
 | `numpy` | all modules | `pip install numpy` |
 | `ultralytics` | `YoloBackend` | `pip install ultralytics` |
 | `transformers` | `Mask2FormerBackend` | `pip install transformers` |
-| `torch` | `Mask2FormerBackend` | `pip install torch` |
+| `torch` | `Mask2FormerBackend`, `DeepLabBackend` | `pip install torch` |
+| `torchvision` | `DeepLabBackend` | `pip install torchvision` |
 | `scipy` | `dilate_mask` (optional) | `pip install scipy` |
 | `Pillow` | `resize_mask`, `Mask2FormerBackend` (optional) | `pip install Pillow` |
 

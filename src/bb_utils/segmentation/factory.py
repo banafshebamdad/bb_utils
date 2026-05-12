@@ -18,6 +18,7 @@ The ``config["model"]["backend"]`` key selects the implementation.
 Currently registered backends:
   ``"yolo"``         — ``YoloBackend`` (Ultralytics YOLOv8/11-seg)
   ``"mask2former"``  — ``Mask2FormerBackend`` (HuggingFace Mask2Former)
+  ``"deeplab"``      — ``DeepLabBackend`` (DeepLabv3+ with ASPP, torchvision)
 
 New backends can be registered via ``register_backend(name, cls)``.
 """
@@ -90,8 +91,10 @@ def _instantiate(cls: Type[SegmentationBackend], model_cfg: Dict) -> Segmentatio
 def _register_builtin_backends() -> None:
     from bb_utils.segmentation.yolo_backend import YoloBackend
     from bb_utils.segmentation.mask2former_backend import Mask2FormerBackend
+    from bb_utils.segmentation.deeplab_backend import DeepLabBackend
     register_backend("yolo", YoloBackend)
     register_backend("mask2former", Mask2FormerBackend)
+    register_backend("deeplab", DeepLabBackend)
 
 
 _register_builtin_backends()
