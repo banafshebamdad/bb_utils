@@ -159,8 +159,9 @@ def run_on_dir(
     target_classes: List[int],
     dilation_radius: int,
     force: bool = False,
+    sequence: Optional[str] = None,
 ) -> Dict:
-    """Segment all PNG frames in *images_dir* and write mask NPZ files to *output_dir*.
+    """Segment PNG frames in *images_dir* and write mask NPZ files to *output_dir*.
 
     Args:
         images_dir:      Flat directory containing ``*.png`` frames.
@@ -169,16 +170,31 @@ def run_on_dir(
         target_classes:  Class indices to include in the mask.
         dilation_radius: Dilation radius in pixels (0 = no dilation).
         force:           Overwrite existing masks when True.
+        sequence:        Optional sequence name prefix.  When provided, only
+                         frames whose stem starts with this string are processed
+                         (glob pattern ``{sequence}*.png``).
 
     Returns:
         Summary dict with ``"total"``, ``"written"``, ``"skipped"``, ``"failed"``.
     """
-    image_files = sorted(images_dir.glob("*.png"))
+    glob_pattern = f"{sequence}*.png" if sequence else "*.png"
+    image_files = sorted(images_dir.glob(glob_pattern))
     if not image_files:
-        logger.warning("No PNG frames found in %s", images_dir)
+        if sequence:
+            logger.warning(
+                "No PNG frames matching '%s' found in %s", glob_pattern, images_dir
+            )
+        else:
+            logger.warning("No PNG frames found in %s", images_dir)
         return {"total": 0, "written": 0, "skipped": 0, "failed": 0}
 
-    logger.info("%d frames to segment in %s", len(image_files), images_dir)
+    if sequence:
+        logger.info(
+            "%d frames matching sequence '%s' to segment in %s",
+            len(image_files), sequence, images_dir,
+        )
+    else:
+        logger.info("%d frames to segment in %s", len(image_files), images_dir)
     n_written = n_skip = n_fail = 0
 
     try:
@@ -227,6 +243,7 @@ def main() -> None:
         bb-run-segmentation --config model.yaml --images-dir /path/to/images --output-dir /path/to/masks
         bb-run-segmentation --config model.yaml --images-dir /path/to/images --output-dir /path/to/masks --force
         bb-run-segmentation --config model.yaml --images-dir /path/to/images --output-dir /path/to/masks --dry-run
+        bb-run-segmentation --config model.yaml --images-dir /path/to/images --output-dir /path/to/masks --sequence Kiko_loop_R
     """
     parser = argparse.ArgumentParser(
         description="Run per-frame segmentation to produce binary mask NPZ files."
@@ -242,6 +259,14 @@ def main() -> None:
     parser.add_argument(
         "--output-dir", type=Path, required=True,
         help="Destination directory for mask NPZ files.",
+    )
+    parser.add_argument(
+        "--sequence", type=str, default=None,
+        help=(
+            "Only process frames whose filename starts with this sequence name "
+            "(e.g. 'Kiko_loop_R').  Equivalent to globbing '{sequence}*.png' "
+            "instead of '*.png'.  Omit to process all frames."
+        ),
     )
     parser.add_argument(
         "--force", action="store_true",
@@ -275,6 +300,7 @@ def main() -> None:
         logger.info("  mask_dilation_px   : %s", model_cfg.get("mask_dilation_px"))
         logger.info("  images_dir         : %s", args.images_dir)
         logger.info("  output_dir         : %s", args.output_dir)
+        logger.info("  sequence filter    : %s", args.sequence or "(all frames)")
         return
 
     # Instantiate backend
@@ -301,6 +327,7 @@ def main() -> None:
         target_classes=target_classes,
         dilation_radius=dilation_radius,
         force=args.force,
+        sequence=args.sequence,
     )
     elapsed = time.time() - t0
     logger.info(

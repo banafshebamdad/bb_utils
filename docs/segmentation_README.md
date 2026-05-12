@@ -308,6 +308,13 @@ bb-run-segmentation \
   --images-dir /path/to/images \
   --output-dir /path/to/masks
 
+# Process only one sequence from a mixed flat directory
+bb-run-segmentation \
+  --config configs/preprocessing_segmentation.yaml \
+  --images-dir /path/to/images \
+  --output-dir /path/to/masks \
+  --sequence Kiko_loop_R
+
 # Overwrite already-generated masks
 bb-run-segmentation \
   --config configs/preprocessing_segmentation.yaml \
@@ -338,6 +345,7 @@ CLI flags:
 | `--config` | yes | Path to segmentation YAML config (model settings) |
 | `--images-dir` | yes | Flat directory of `*.png` frames to segment |
 | `--output-dir` | yes | Destination directory for mask NPZ files |
+| `--sequence` | no | Only process frames whose filename starts with this string (e.g. `Kiko_loop_R`); equivalent to globbing `{sequence}*.png` |
 | `--force` | no | Overwrite existing mask NPZ files |
 | `--dry-run` | no | Log config summary and exit without running inference |
 | `--verbose` | no | Enable DEBUG-level logging |
