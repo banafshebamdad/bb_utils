@@ -26,7 +26,9 @@ src/bb_utils/label_generation/validate_csv_to_npz.py
 src/bb_utils/label_generation/validate_labels.py
 src/bb_utils/segmentation/__init__.py
 src/bb_utils/segmentation/base.py
+src/bb_utils/segmentation/deeplab_backend.py
 src/bb_utils/segmentation/factory.py
+src/bb_utils/segmentation/mask2former_backend.py
 src/bb_utils/segmentation/utils.py
 src/bb_utils/segmentation/yolo_backend.py
 src/bb_utils/utils/__init__.py
