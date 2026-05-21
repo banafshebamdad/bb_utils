@@ -1,3 +1,19 @@
+# Author: Banafshe Bamdad
+# Date: 2026-05-21
+
+"""
+Visualize temporal score functions over a range of Sampson-distance values.
+
+Curves plotted:
+  - Standard sigmoid:          s = 1 / (1 + exp(e))
+  - Shifted sigmoid (e0=0.003): s = 1 / (1 + exp(gamma * (e - e0))), gamma=800
+  - Shifted sigmoid (e0=0.010): s = 1 / (1 + exp(gamma * (e - e0))), gamma=800
+  - Exponential decay:          s = exp(-69 * e)
+
+Reference lines:
+  - Vertical dashed lines at each e0 value.
+  - Horizontal dotted line at s = 0.5.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,8 +31,8 @@ s_exp_decay = np.exp(-69 * e)
 fig, ax = plt.subplots(figsize=(9, 5))
 
 ax.plot(e, s_standard_sigmoid,   label="Standard sigmoid: $s = 1/(1 + e^{e})$")
-ax.plot(e, s_shifted_sigmoid_e0a, label=r"Shifted sigmoid $e_0=0.003$: $s = 1/(1 + e^{\gamma(e - e_0)})$")
-ax.plot(e, s_shifted_sigmoid_e0b, label=r"Shifted sigmoid $e_0=0.010$: $s = 1/(1 + e^{\gamma(e - e_0)})$")
+ax.plot(e, s_shifted_sigmoid_e0a, label=rf"Shifted sigmoid $\gamma={gamma}$, $e_0={e0_a}$: $s = 1/(1 + e^{{\gamma(e - e_0)}})$")
+ax.plot(e, s_shifted_sigmoid_e0b, label=rf"Shifted sigmoid $\gamma={gamma}$, $e_0={e0_b}$: $s = 1/(1 + e^{{\gamma(e - e_0)}})$")
 ax.plot(e, s_exp_decay,           label=r"Exponential decay: $s = e^{-69e}$")
 
 ax.axvline(x=e0_a, color="gray", linestyle="--", linewidth=1, label=f"$e_0 = {e0_a}$")
@@ -30,5 +46,5 @@ ax.set_ylim(-0.05, 1.05)
 ax.legend(fontsize=8)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig("temporal_score_curves.png", dpi=150)
+plt.savefig(f"temporal_score_curves_gamma{gamma}.png", dpi=150)
 plt.show()
