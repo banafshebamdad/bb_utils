@@ -22,6 +22,7 @@ bb-organize-3d-obs = "bb_utils.data_preparation.organize_3d_observations:main"
 bb-cache-world-coords = "bb_utils.data_preparation.world_coords_cache:main"
 bb-run-segmentation = "bb_utils.data_preparation.segmentation_runner:main"
 bb-analyze-decay-rate = "bb_utils.confidence_decay_analysis.cli:main"
+bb-make-video = "bb_utils.utils.video_from_images:main"
 
 [project.optional-dependencies]
 percentiles = ["tdigest>=0.5.2"]

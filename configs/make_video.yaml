@@ -1,0 +1,44 @@
+#
+# Config: make_video.yaml
+# Author: Banafshe Bamdad
+# Date: 2026-05-30
+#
+# Pipeline: bb-make-video (bb_utils)
+#
+# All image-directory and output-path settings are supplied via CLI flags
+# (--images-dir, --output).  This file controls encoding and frame-selection
+# parameters only.
+#
+# Usage:
+#   bb-make-video --config configs/make_video.yaml \
+#                 --images-dir /path/to/images \
+#                 --output /path/to/output.mp4
+#
+# Supported codecs (FourCC):
+#   "mp4v"  — MPEG-4 Part 2, typical for .mp4  (widely compatible)
+#   "avc1"  — H.264, also .mp4  (smaller file, requires H.264 support in OpenCV)
+#   "XVID"  — Xvid MPEG-4, typical for .avi
+#   "MJPG"  — Motion JPEG, for .avi  (large files, lossless-like quality)
+#
+# Supported sort_by values:
+#   "name"  — lexicographic sort on filename (default; matches frame numbering)
+#   "mtime" — sort by file modification time
+#
+# resize: set width and/or height to rescale all frames uniformly.
+#   If only one dimension is given the other is derived from the native aspect ratio.
+#   Set both to null to keep the original resolution.
+#
+# frame_range: 0-based indices into the sorted frame list (both inclusive).
+#   Set start and end to null to include all discovered frames.
+#
+video:
+  fps: 30                # frames per second of the output video
+  codec: "mp4v"          # FourCC codec string (see supported codecs above)
+  image_glob: "*.png"    # glob pattern for image discovery; e.g. "*.jpg", "frame_*.png"
+  sort_by: "name"        # "name" (lexicographic) or "mtime" (modification time)
+  resize:
+    width: null          # target width in pixels; null = keep native width
+    height: null         # target height in pixels; null = keep native height
+  frame_range:
+    start: null          # 0-based inclusive start index; null = first frame
+    end: null            # 0-based inclusive end index;   null = last frame
