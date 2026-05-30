@@ -326,7 +326,7 @@ segmentation:
 **Dependencies**: `sam3`, `torch` (see installation below)
 
 Wraps [SAM 3 (Segment Anything with Concepts)](https://github.com/facebookresearch/sam3) from Meta AI.
-SAM 3 is an open-vocabulary, text-prompted foundation model that can detect and segment any object described by a short text phrase — without retraining or fine-tuning.  It achieves 75–80% of human performance on the SA-Co benchmark (270 K unique concepts).
+SAM 3 is an open-vocabulary, text-prompted foundation model that can detect and segment any object described by a short text phrase, without retraining or fine-tuning.  It achieves 75–80% of human performance on the SA-Co benchmark (270 K unique concepts).
 
 Unlike the other backends, SAM 3 does **not** use integer class indices as primary prompts.  Instead, integer `target_classes` are translated to text prompts via a configurable `class_to_text` dictionary.  The built-in default covers all 80 COCO categories (e.g. class `0` → `"person"`).
 
@@ -349,12 +349,21 @@ class_to_text:
 3. Accumulate masks from all prompts via element-wise maximum.
 4. Return `uint8 (H, W)` mask with values in `{0, 1}`.
 
-**Authentication — required before first use:**
+**Authentication: required before first use:**
 
 SAM 3 checkpoints are gated on HuggingFace and require explicit access:
 
-1. Request access at <https://huggingface.co/facebook/sam3>
-2. Log in: `huggingface-cli login`
+1. Request access at <https://huggingface.co/facebook/sam3> and wait for approval.
+2. Once approved, generate a HuggingFace access token at <https://huggingface.co/settings/tokens> (role: **Read**).
+3. Authenticate locally using the `hf` CLI (`huggingface-cli` is deprecated):
+   ```bash
+   hf auth login
+   ```
+   Paste your token when prompted.  The token is saved to `~/.cache/huggingface/token`.
+4. Verify authentication:
+   ```bash
+   hf whoami
+   ```
 
 The checkpoint (~3.4 GB for `sam3`, ~3.7 GB for `sam3.1`) is downloaded
 automatically to `~/.cache/huggingface/hub/` on first use.
@@ -400,9 +409,12 @@ git clone https://github.com/facebookresearch/sam3.git
 cd sam3
 pip install -e .
 
-# 2. Request HuggingFace access and authenticate
-#    → https://huggingface.co/facebook/sam3
-huggingface-cli login
+# 2. Request access at https://huggingface.co/facebook/sam3 and wait for approval.
+# 3. Generate a HuggingFace token at https://huggingface.co/settings/tokens (role: Read).
+# 4. Authenticate (huggingface-cli is deprecated; use hf instead):
+hf auth login
+# 5. Verify:
+hf whoami
 ```
 
 > **Note: SAM 3 requires Python ≥ 3.12 and PyTorch ≥ 2.7 (CUDA 12.6+).**
