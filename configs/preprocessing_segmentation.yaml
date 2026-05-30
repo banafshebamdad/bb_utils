@@ -28,38 +28,38 @@
 #   1. Install sam3:
 #        git clone https://github.com/facebookresearch/sam3.git && cd sam3 && pip install -e .
 #   2. Request HuggingFace access at https://huggingface.co/facebook/sam3
-#   3. Authenticate:  huggingface-cli login
+#   3. Authenticate:  hf auth login
 #
 # On first run the checkpoint (~3.4 GB for sam3, ~3.7 GB for sam3.1) is
 # downloaded automatically to ~/.cache/huggingface/hub/.
 # Set checkpoint_path to a local .pt file to skip the download.
 #
 # NOTE: target_classes uses COCO class IDs (0 = person) mapped via class_to_text.
-#       The class_to_text dict is open-vocabulary — any text phrase is valid.
+#       The class_to_text dict is open-vocabulary, any text phrase is valid.
 #
-# model:
-#   backend:              "sam3"
-#   version:              "sam3"          # "sam3" or "sam3.1"
-#   checkpoint_path:      null            # null = auto-download from HuggingFace
-#   device:               "cuda"
-#   confidence_threshold: 0.5             # minimum detection score in (0, 1)
-#   class_to_text:                        # optional overrides for the built-in COCO map
-#     0: "person"                         # COCO class 0 → text prompt "person"
-#   target_classes:       [0]             # COCO class IDs; 0 = person
-#   mask_dilation_px:     0
+model:
+  backend:              "sam3"
+  version:              "sam3"          # "sam3" or "sam3.1"
+  checkpoint_path:      null            # null = auto-download from HuggingFace
+  device:               "cuda"
+  confidence_threshold: 0.5             # minimum detection score in (0, 1)
+  class_to_text:                        # optional overrides for the built-in COCO map
+    0: "person"                         # COCO class 0 -> text prompt "person"
+  target_classes:       [0]             # COCO class IDs; 0 = person
+  mask_dilation_px:     0
 
 # ---------------------------------------------------------------------------
 # DeepLabBackend example (set backend: "deeplab" and adjust target_classes)
 # ---------------------------------------------------------------------------
-model:
-  backend:              "deeplab"
-  backbone:             "resnet101"       # "resnet50" or "resnet101"
-  pretrained_weights:   "coco_voc"        # "coco_voc" = complete torchvision pretrained model (backbone+ASPP+head, fully trained); or path to .pth for custom DeepLabv3+ checkpoint; or null
-  device:               "cuda"
-  num_classes:          21                # Pascal VOC label space
-  atrous_rates:         [12, 24, 36]      # ASPP dilation rates — ignored when pretrained_weights: "coco_voc"; use [6,12,18] for output_stride=16 custom checkpoints
-  aspp_channels:        256               # ASPP output channels — ignored when pretrained_weights: "coco_voc"
-  segmentation_mode:    "argmax"          # "argmax" or "threshold"
-  mask_threshold:       0.5               # used only when segmentation_mode: "threshold"
-  target_classes:       [15]              # Pascal VOC class 15 = person (NOT COCO class 0!)
-  mask_dilation_px:     0
+# model:
+#   backend:              "deeplab"
+#   backbone:             "resnet101"       # "resnet50" or "resnet101"
+#   pretrained_weights:   "coco_voc"        # "coco_voc" = complete torchvision pretrained model (backbone+ASPP+head, fully trained); or path to .pth for custom DeepLabv3+ checkpoint; or null
+#   device:               "cuda"
+#   num_classes:          21                # Pascal VOC label space
+#   atrous_rates:         [12, 24, 36]      # ASPP dilation rates — ignored when pretrained_weights: "coco_voc"; use [6,12,18] for output_stride=16 custom checkpoints
+#   aspp_channels:        256               # ASPP output channels — ignored when pretrained_weights: "coco_voc"
+#   segmentation_mode:    "argmax"          # "argmax" or "threshold"
+#   mask_threshold:       0.5               # used only when segmentation_mode: "threshold"
+#   target_classes:       [15]              # Pascal VOC class 15 = person (NOT COCO class 0!)
+#   mask_dilation_px:     0

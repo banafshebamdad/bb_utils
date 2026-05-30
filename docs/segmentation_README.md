@@ -409,10 +409,11 @@ segmentation:
 **Installation:**
 
 ```bash
-# 1. Clone and install sam3
+# 1. Clone and install sam3 and its extra dependencies
 git clone https://github.com/facebookresearch/sam3.git
 cd sam3
 pip install -e .
+pip install einops pycocotools
 
 # 2. Request access at https://huggingface.co/facebook/sam3 and wait for approval.
 # 3. Generate a HuggingFace token at https://huggingface.co/settings/tokens (role: Read).
@@ -642,6 +643,8 @@ No changes are required in `segmentation_runner.py` (`bb_utils.data_preparation`
 | `torch` | `Mask2FormerBackend`, `DeepLabBackend`, `Sam3Backend` | `pip install torch` |
 | `torchvision` | `DeepLabBackend` | `pip install torchvision` |
 | `sam3` | `Sam3Backend` | `git clone https://github.com/facebookresearch/sam3.git && cd sam3 && pip install -e .` |
+| `einops` | `Sam3Backend` | `pip install einops` |
+| `pycocotools` | `Sam3Backend` | `pip install pycocotools` |
 | `scipy` | `dilate_mask` (optional) | `pip install scipy` |
 | `Pillow` | `resize_mask`, `Mask2FormerBackend`, `Sam3Backend` (optional) | `pip install Pillow` |
 
