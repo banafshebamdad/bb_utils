@@ -360,9 +360,14 @@ SAM 3 checkpoints are gated on HuggingFace and require explicit access:
    hf auth login
    ```
    Paste your token when prompted.  The token is saved to `~/.cache/huggingface/token`.
-4. Verify authentication:
+4. Verify authentication and list all stored tokens:
    ```bash
-   hf whoami
+   hf auth whoami    # show the currently active account
+   hf auth list      # list all stored tokens
+   ```
+5. To log out when done:
+   ```bash
+   hf auth logout
    ```
 
 The checkpoint (~3.4 GB for `sam3`, ~3.7 GB for `sam3.1`) is downloaded
@@ -414,7 +419,10 @@ pip install -e .
 # 4. Authenticate (huggingface-cli is deprecated; use hf instead):
 hf auth login
 # 5. Verify:
-hf whoami
+hf auth whoami    # show the currently active account
+hf auth list      # list all stored tokens
+# To log out:
+hf auth logout
 ```
 
 > **Note: SAM 3 requires Python ≥ 3.12 and PyTorch ≥ 2.7 (CUDA 12.6+).**
