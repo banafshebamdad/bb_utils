@@ -19,6 +19,7 @@ Currently registered backends:
   ``"yolo"``         — ``YoloBackend`` (Ultralytics YOLOv8/11-seg)
   ``"mask2former"``  — ``Mask2FormerBackend`` (HuggingFace Mask2Former)
   ``"deeplab"``      — ``DeepLabBackend`` (DeepLabv3+ with ASPP, torchvision)
+  ``"sam3"``         — ``Sam3Backend`` (SAM 3, Meta AI — open-vocabulary text prompts)
 
 New backends can be registered via ``register_backend(name, cls)``.
 """
@@ -92,9 +93,11 @@ def _register_builtin_backends() -> None:
     from bb_utils.segmentation.yolo_backend import YoloBackend
     from bb_utils.segmentation.mask2former_backend import Mask2FormerBackend
     from bb_utils.segmentation.deeplab_backend import DeepLabBackend
+    from bb_utils.segmentation.sam3_backend import Sam3Backend
     register_backend("yolo", YoloBackend)
     register_backend("mask2former", Mask2FormerBackend)
     register_backend("deeplab", DeepLabBackend)
+    register_backend("sam3", Sam3Backend)
 
 
 _register_builtin_backends()

@@ -270,7 +270,7 @@ bb-run-segmentation --config ... --dry-run
 
 **Input:** `{keypoints_dir}/{split}/{stem}.npz` (used to discover frame stems) and `{images_dir}/{split}/{stem}.png`.
 
-**Output:** `{semantic_masks_dir}/{split}/{stem}.npz` — each file contains a single `uint8 (H, W)` array under key `"mask"` with `1` = detected target class, `0` = background.
+**Output:** `{semantic_masks_dir}/{split}/{stem}.npz`: each file contains a single `uint8 (H, W)` array under key `"mask"` with `1` = detected target class, `0` = background.
 
 The tool is idempotent: existing masks are skipped unless `--force` is used.
 

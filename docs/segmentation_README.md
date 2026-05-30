@@ -12,6 +12,7 @@
   - [YoloBackend](#yolobackend)
   - [Mask2FormerBackend](#mask2formerbackend)
   - [DeepLabBackend](#deeplabbackend)
+  - [Sam3Backend](#sam3backend)
 - [CLI usage](#cli-usage)
 - [Config format](#config-format)
 - [Output files](#output-files)
@@ -318,6 +319,98 @@ segmentation:
 
 ---
 
+### Sam3Backend
+
+**Module**: `bb_utils.segmentation.sam3_backend`  
+**Config key**: `"sam3"`  
+**Dependencies**: `sam3`, `torch` (see installation below)
+
+Wraps [SAM 3 (Segment Anything with Concepts)](https://github.com/facebookresearch/sam3) from Meta AI.
+SAM 3 is an open-vocabulary, text-prompted foundation model that can detect and segment any object described by a short text phrase — without retraining or fine-tuning.  It achieves 75–80% of human performance on the SA-Co benchmark (270 K unique concepts).
+
+Unlike the other backends, SAM 3 does **not** use integer class indices as primary prompts.  Instead, integer `target_classes` are translated to text prompts via a configurable `class_to_text` dictionary.  The built-in default covers all 80 COCO categories (e.g. class `0` → `"person"`).
+
+**Class indices** follow the COCO convention (same as YOLO / Mask2Former): class `0` = `person`.  The `class_to_text` map can be overridden with arbitrary open-vocabulary phrases:
+
+```yaml
+class_to_text:
+  0: "pedestrian"          # more descriptive than "person"
+  0: "person in a crowd"   # context-specific
+```
+
+**Inference flow:**
+
+1. Precompute visual backbone features once per image (`Sam3Processor.set_image`).
+2. For each unique text prompt (derived from `target_classes` + `class_to_text`):
+   a. Shallow-copy the image-state dict (keeps backbone features, isolates text features).
+   b. Run `Sam3Processor.set_text_prompt` — executes the DETR-based detector head.
+   c. Filter detections: keep instances with score ≥ `confidence_threshold`.
+   d. Union all per-instance boolean masks for this prompt.
+3. Accumulate masks from all prompts via element-wise maximum.
+4. Return `uint8 (H, W)` mask with values in `{0, 1}`.
+
+**Authentication — required before first use:**
+
+SAM 3 checkpoints are gated on HuggingFace and require explicit access:
+
+1. Request access at <https://huggingface.co/facebook/sam3>
+2. Log in: `huggingface-cli login`
+
+The checkpoint (~3.4 GB for `sam3`, ~3.7 GB for `sam3.1`) is downloaded
+automatically to `~/.cache/huggingface/hub/` on first use.
+
+**Config keys** (all under `model:`):
+
+| Key | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `backend` | str | yes | — | Must be `"sam3"` |
+| `version` | str | no | `"sam3"` | `"sam3"` (base) or `"sam3.1"` (Object Multiplex, faster multi-object tracking) |
+| `checkpoint_path` | str | no | `null` | Absolute path to a local `.pt` checkpoint.  `null` = auto-download from HuggingFace |
+| `device` | str | no | `"cuda"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
+| `confidence_threshold` | float | no | `0.5` | Minimum detection score (0, 1) |
+| `class_to_text` | dict | no | `{}` | Maps integer class IDs to text prompts.  Merged on top of the built-in 80-class COCO default; user values take precedence |
+
+`iou_threshold`, `mask_threshold`, `segmentation_mode`, and `backbone` are not used by this backend.
+
+**Example YAML config for pedestrian segmentation:**
+
+```yaml
+model:
+  backend:              "sam3"
+  version:              "sam3"
+  checkpoint_path:      null          # null = auto-download (requires HF auth)
+  device:               "cuda"
+  confidence_threshold: 0.5
+  class_to_text:
+    0: "person"
+```
+
+And in the pipeline config:
+
+```yaml
+segmentation:
+  target_classes: [0]   # COCO class 0 = person
+```
+
+**Installation:**
+
+```bash
+# 1. Clone and install sam3
+git clone https://github.com/facebookresearch/sam3.git
+cd sam3
+pip install -e .
+
+# 2. Request HuggingFace access and authenticate
+#    → https://huggingface.co/facebook/sam3
+huggingface-cli login
+```
+
+> **Note: SAM 3 requires Python ≥ 3.12 and PyTorch ≥ 2.7 (CUDA 12.6+).**
+> See the [SAM 3 README](https://github.com/facebookresearch/sam3#installation)
+> for full prerequisites.
+
+---
+
 ## CLI usage
 
 **Prerequisites**: install the backend dependency before running:
@@ -326,6 +419,7 @@ segmentation:
 pip install ultralytics          # required for YoloBackend (default)
 pip install transformers torch   # required for Mask2FormerBackend
 pip install torch torchvision    # required for DeepLabBackend
+# For Sam3Backend: clone and install from source (see Sam3Backend section above)
 ```
 
 ```bash
@@ -525,10 +619,11 @@ No changes are required in `segmentation_runner.py` (`bb_utils.data_preparation`
 | `numpy` | all modules | `pip install numpy` |
 | `ultralytics` | `YoloBackend` | `pip install ultralytics` |
 | `transformers` | `Mask2FormerBackend` | `pip install transformers` |
-| `torch` | `Mask2FormerBackend`, `DeepLabBackend` | `pip install torch` |
+| `torch` | `Mask2FormerBackend`, `DeepLabBackend`, `Sam3Backend` | `pip install torch` |
 | `torchvision` | `DeepLabBackend` | `pip install torchvision` |
+| `sam3` | `Sam3Backend` | `git clone https://github.com/facebookresearch/sam3.git && cd sam3 && pip install -e .` |
 | `scipy` | `dilate_mask` (optional) | `pip install scipy` |
-| `Pillow` | `resize_mask`, `Mask2FormerBackend` (optional) | `pip install Pillow` |
+| `Pillow` | `resize_mask`, `Mask2FormerBackend`, `Sam3Backend` (optional) | `pip install Pillow` |
 
 `scipy` and `Pillow` are optional: both `dilate_mask` and `resize_mask` fall
 back to pure-numpy implementations when they are not installed, at a small

@@ -22,6 +22,33 @@
 #   segmentation_type:    "panoptic" # [mask2former only]   "instance" or "panoptic"; ignored by yolo / deeplab
 
 # ---------------------------------------------------------------------------
+# Sam3Backend example (set backend: "sam3" and adjust class_to_text)
+# ---------------------------------------------------------------------------
+# Prerequisites:
+#   1. Install sam3:
+#        git clone https://github.com/facebookresearch/sam3.git && cd sam3 && pip install -e .
+#   2. Request HuggingFace access at https://huggingface.co/facebook/sam3
+#   3. Authenticate:  huggingface-cli login
+#
+# On first run the checkpoint (~3.4 GB for sam3, ~3.7 GB for sam3.1) is
+# downloaded automatically to ~/.cache/huggingface/hub/.
+# Set checkpoint_path to a local .pt file to skip the download.
+#
+# NOTE: target_classes uses COCO class IDs (0 = person) mapped via class_to_text.
+#       The class_to_text dict is open-vocabulary — any text phrase is valid.
+#
+# model:
+#   backend:              "sam3"
+#   version:              "sam3"          # "sam3" or "sam3.1"
+#   checkpoint_path:      null            # null = auto-download from HuggingFace
+#   device:               "cuda"
+#   confidence_threshold: 0.5             # minimum detection score in (0, 1)
+#   class_to_text:                        # optional overrides for the built-in COCO map
+#     0: "person"                         # COCO class 0 → text prompt "person"
+#   target_classes:       [0]             # COCO class IDs; 0 = person
+#   mask_dilation_px:     0
+
+# ---------------------------------------------------------------------------
 # DeepLabBackend example (set backend: "deeplab" and adjust target_classes)
 # ---------------------------------------------------------------------------
 model:

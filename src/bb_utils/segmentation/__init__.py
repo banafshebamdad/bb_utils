@@ -28,6 +28,8 @@ mask2former_backend
     ``Mask2FormerBackend`` — wraps HuggingFace Mask2Former (instance/panoptic).
 deeplab_backend
     ``DeepLabBackend`` — DeepLabv3+ with ASPP module (semantic segmentation).
+sam3_backend
+    ``Sam3Backend`` — SAM 3 (Meta AI) open-vocabulary text-prompt segmentation.
 utils
     ``dilate_mask``, ``union_masks``, ``resize_mask`` — mask post-processing
     utilities used by callers (e.g. ``segmentation_runner.py`` in sp-score).
