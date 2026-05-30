@@ -247,6 +247,10 @@ class Sam3Backend(SegmentationBackend):
 
         self._device = device
         self._confidence_threshold = float(confidence_threshold)
+        # SAM 3 checkpoint weights are saved in bfloat16.  Wrapping forward
+        # passes in torch.autocast resolves the BFloat16/Float dtype mismatch
+        # that occurs when strict=False loading leaves some layers in float32.
+        self._autocast_device = "cuda" if device.startswith("cuda") else "cpu"
 
         # Build the effective class→text map: defaults overridden by user config.
         self._class_to_text: Dict[int, str] = {
@@ -355,9 +359,13 @@ class Sam3Backend(SegmentationBackend):
         # ------------------------------------------------------------------
         # Precompute visual backbone features once for all prompts.
         # set_image returns a state dict with ``backbone_out`` (image-only).
+        # SAM 3 weights are bfloat16; autocast ensures a consistent dtype
+        # across all layers regardless of strict=False loading gaps.
         # ------------------------------------------------------------------
+        import torch
         pil_image = PILImage.fromarray(image)
-        base_state = self._processor.set_image(pil_image)
+        with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
+            base_state = self._processor.set_image(pil_image)
 
         # ------------------------------------------------------------------
         # Run the detector head independently for each text prompt.
@@ -371,10 +379,11 @@ class Sam3Backend(SegmentationBackend):
             prompt_state: dict = dict(base_state)
             prompt_state["backbone_out"] = dict(base_state["backbone_out"])
 
-            result_state = self._processor.set_text_prompt(
-                prompt=prompt,
-                state=prompt_state,
-            )
+            with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
+                result_state = self._processor.set_text_prompt(
+                    prompt=prompt,
+                    state=prompt_state,
+                )
 
             masks_tensor = result_state.get("masks")
             if masks_tensor is None or masks_tensor.numel() == 0:
