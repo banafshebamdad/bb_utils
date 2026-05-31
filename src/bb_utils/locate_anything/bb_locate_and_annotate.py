@@ -103,7 +103,8 @@ def parse_boxes(
         y1 = round(ny1 * img_height / coord_scale)
         x2 = round(nx2 * img_width / coord_scale)
         y2 = round(ny2 * img_height / coord_scale)
-        boxes.append((x1, y1, x2, y2))
+        # Normalise in case the model outputs inverted coordinates
+        boxes.append((min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
     return boxes
 
 
