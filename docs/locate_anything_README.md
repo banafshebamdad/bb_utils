@@ -117,25 +117,25 @@ top of `bb_locate_and_annotate.py`:
 > The LocateAnything model uses stochastic sampling (`do_sample=True`,
 > `temperature=0.7`), which causes two related issues:
 >
-> 1. **Runaway generation** — without a fixed seed, each image's generation
+> 1. **Runaway generation**: without a fixed seed, each image's generation
 >    shifts the GPU random state. Occasionally an image gets an unlucky state
 >    where the model never produces the end-of-sequence token, generating
 >    `<box>` entries until the 2048-token limit (hundreds of spurious boxes).
 >    `RANDOM_SEED` resets the RNG to the same state before every call so batch
 >    mode and single-image mode behave identically.
 >
-> 2. **Near-duplicate boxes** — even with a fixed seed the model can enter a
+> 2. **Near-duplicate boxes**: even with a fixed seed the model can enter a
 >    semi-repetitive state where it emits many slightly-shifted boxes for the
 >    same location before eventually stopping (e.g. 31 boxes instead of ~8 for
 >    a crowd frame). `IOU_THRESHOLD` enables greedy IoU-based suppression: the
 >    first box in each overlapping cluster is kept and any subsequent box with
 >    IoU ≥ threshold against an accepted box is discarded.
 >
-> The image below shows a correctly annotated frame (`Orell_strait_L_671630631.png`)
-> with both fixes applied — 8 persons detected, matching the result of running
-> the same image in single-image mode:
+> The image below illustrates the near-duplicate issue
+> annotated **without** the fixes, showing spurious overlapping boxes produced
+> by the model's repetitive generation:
 >
-> ![Batch consistency example](Orell_strait_L_671630631_annotated.png)
+> ![Near-duplicate box example](Orell_strait_L_671630631_annotated.png)
 
 ---
 
