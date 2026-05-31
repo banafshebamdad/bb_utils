@@ -101,7 +101,7 @@ top of `bb_locate_and_annotate.py`:
 
 | Constant | Default | Description |
 |---|---|---|
-| `LOCATEANYTHING_DIR` | `"/home/ubuntu/eagle/Embodied"` | Directory containing `locateanything_worker.py`; added to `sys.path` at startup |
+| `LOCATEANYTHING_DIR` | `"~/eagle/Embodied"` | Directory containing `locateanything_worker.py`; added to `sys.path` at startup |
 | `MODEL_ID` | `"nvidia/LocateAnything-3B"` | HuggingFace model identifier |
 | `QUERY_LABELS` | `["person"]` | List of object classes to detect |
 | `BOX_COLOR` | `"green"` | Bounding box outline and text-background colour |
@@ -122,8 +122,8 @@ conda activate locateanything
 ```
 
 The script accepts absolute or relative paths for both input and output and can
-be invoked from any working directory — `locateanything_worker` is resolved via
-`LOCATEANYTHING_DIR` in the configuration block, not via the current directory.
+be invoked from any working directory, `locateanything_worker` is resolved via
+`LOCATEANYTHING_DIR` in the configuration block.
 
 ### Single image
 

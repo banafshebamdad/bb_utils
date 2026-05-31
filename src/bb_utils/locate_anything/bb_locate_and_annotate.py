@@ -43,7 +43,7 @@ from PIL import Image, ImageDraw, ImageFont
 # ---------------------------------------------------------------------------
 MODEL_ID              = "nvidia/LocateAnything-3B"
 QUERY_LABELS          = ["person"]
-LOCATEANYTHING_DIR    = "/home/ubuntu/eagle/Embodied"  # directory containing locateanything_worker.py
+LOCATEANYTHING_DIR    = "~/eagle/Embodied"  # directory containing locateanything_worker.py
 
 BOX_COLOR       = "green"    # outline and text-background color
 TEXT_COLOR      = "white"    # text color
@@ -54,8 +54,9 @@ FONT_SIZE       = 14         # font size for label and coordinate text
 # ---------------------------------------------------------------------------
 
 # Make locateanything_worker importable regardless of working directory
-if LOCATEANYTHING_DIR not in sys.path:
-    sys.path.insert(0, LOCATEANYTHING_DIR)
+_locate_dir = str(Path(LOCATEANYTHING_DIR).expanduser().resolve())
+if _locate_dir not in sys.path:
+    sys.path.insert(0, _locate_dir)
 
 from locateanything_worker import LocateAnythingWorker  # noqa: E402
 
