@@ -53,6 +53,7 @@ WRITE_COORDS    = False      # write (x1,y1,x2,y2) on each box
 WRITE_LABEL     = False      # write the object label on each box
 FONT_SIZE       = 14         # font size for label and coordinate text
 RANDOM_SEED     = 42         # fixed RNG seed reset before each image (ensures consistent results across batch)
+IOU_THRESHOLD   = 0.5        # IoU above this causes a box to be suppressed as a near-duplicate (set to 1.0 to disable)
 # ---------------------------------------------------------------------------
 
 # Make locateanything_worker importable regardless of working directory
@@ -108,6 +109,35 @@ def parse_boxes(
         # Normalise in case the model outputs inverted coordinates
         boxes.append((min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
     return boxes
+
+
+def _iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
+    """Compute Intersection over Union for two (x1, y1, x2, y2) boxes."""
+    ix1, iy1 = max(a[0], b[0]), max(a[1], b[1])
+    ix2, iy2 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    if inter == 0:
+        return 0.0
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    return inter / (area_a + area_b - inter)
+
+
+def deduplicate_boxes(
+    boxes: list[tuple[int, int, int, int]],
+    iou_threshold: float = 0.5,
+) -> list[tuple[int, int, int, int]]:
+    """Remove near-duplicate boxes using greedy IoU-based suppression.
+
+    Boxes are processed in the order returned by the model. The first box in
+    each overlapping cluster is kept; subsequent boxes whose IoU with any
+    already-accepted box exceeds ``iou_threshold`` are discarded.
+    """
+    kept: list[tuple[int, int, int, int]] = []
+    for box in boxes:
+        if all(_iou(box, k) < iou_threshold for k in kept):
+            kept.append(box)
+    return kept
 
 
 def draw_boxes(
@@ -178,6 +208,7 @@ def process_image(worker: LocateAnythingWorker, input_path: Path, output_path: P
     print(f"[{input_path.name}] {answer}")
 
     boxes = parse_boxes(answer, img.width, img.height)
+    boxes = deduplicate_boxes(boxes, iou_threshold=IOU_THRESHOLD)
     print(f"[{input_path.name}] Detected {len(boxes)} boxes: {boxes}")
 
     annotated = draw_boxes(
