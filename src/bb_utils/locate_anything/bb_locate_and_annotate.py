@@ -34,15 +34,16 @@ Configuration:
 
 import argparse
 import re
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-from locateanything_worker import LocateAnythingWorker
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-MODEL_ID        = "nvidia/LocateAnything-3B"
-QUERY_LABELS    = ["person"]
+MODEL_ID              = "nvidia/LocateAnything-3B"
+QUERY_LABELS          = ["person"]
+LOCATEANYTHING_DIR    = "/home/ubuntu/eagle/Embodied"  # directory containing locateanything_worker.py
 
 BOX_COLOR       = "green"    # outline and text-background color
 TEXT_COLOR      = "white"    # text color
@@ -51,6 +52,12 @@ WRITE_COORDS    = False      # write (x1,y1,x2,y2) on each box
 WRITE_LABEL     = False      # write the object label on each box
 FONT_SIZE       = 14         # font size for label and coordinate text
 # ---------------------------------------------------------------------------
+
+# Make locateanything_worker importable regardless of working directory
+if LOCATEANYTHING_DIR not in sys.path:
+    sys.path.insert(0, LOCATEANYTHING_DIR)
+
+from locateanything_worker import LocateAnythingWorker  # noqa: E402
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
 
