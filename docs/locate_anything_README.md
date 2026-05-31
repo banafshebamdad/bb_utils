@@ -121,9 +121,7 @@ top of `bb_locate_and_annotate.py`:
 > state before every call so batch mode and single-image mode produce identical
 > results. Change the value freely; set it to `None` to disable the reset.
 >
-> The image below shows a correctly annotated frame (`Orell_strait_L_671630631.png`)
-> produced with `RANDOM_SEED = 42` — 8 persons detected, matching the result of
-> running the same image in single-image mode:
+> See the image below.
 >
 > ![Batch consistency example](Orell_strait_L_671630631_annotated.png)
 
