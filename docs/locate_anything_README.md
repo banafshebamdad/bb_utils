@@ -83,14 +83,14 @@ install `bb_utils` into it so the console script entry point is registered:
 
 ```bash
 conda activate locateanything
-pip install -e /home/ubuntu/bb_utils
+pip install -e ~/bb_utils
 ```
 
 This makes the command `bb-locate-and-annotate` available on `PATH` within the
 `locateanything` environment.
 
-> **Note:** Do **not** run this script from the `sp-score` or any other
-> environment — `locateanything_worker` will not be found there.
+> **Note:** Do **not** run this script from any other
+> environment, `locateanything_worker` will not be found there.
 
 ---
 
@@ -114,32 +114,49 @@ top of `bb_locate_and_annotate.py`:
 
 ## Usage
 
+Always activate the `locateanything` environment before running the script:
+
+```bash
+conda activate locateanything
+```
+
+The script accepts absolute or relative paths for both input and output, so it
+can be invoked from any working directory. The examples below use absolute paths
+to avoid ambiguity. If you prefer to call it by filename, `cd` into the script
+directory first:
+
+```bash
+cd ~/bb_utils/src/bb_utils/locate_anything
+```
+
 ### Single image
 
 ```bash
-python bb_locate_and_annotate.py <input_image> <output_image>
+# Using the console script (recommended after pip install -e)
+bb-locate-and-annotate /path/to/photo.png /path/to/photo_annotated.png
 
-# Example
+# Or directly with python (from any directory)
+python ~/bb_utils/src/bb_utils/locate_anything/bb_locate_and_annotate.py \
+    /path/to/photo.png /path/to/photo_annotated.png
+
+# Or with python after cd into the script directory
+cd ~/bb_utils/src/bb_utils/locate_anything
 python bb_locate_and_annotate.py photo.png photo_annotated.png
-```
-
-Or via the registered console script (after `pip install -e`):
-
-```bash
-bb-locate-and-annotate photo.png photo_annotated.png
 ```
 
 ### Folder of images
 
 ```bash
-python bb_locate_and_annotate.py <input_dir> <output_dir>
+# Using the console script (recommended after pip install -e)
+bb-locate-and-annotate /path/to/images/ /path/to/images_annotated/
 
-# Example
-python bb_locate_and_annotate.py images/ images_annotated/
+# Or directly with python (from any directory)
+python ~/bb_utils/src/bb_utils/locate_anything/bb_locate_and_annotate.py \
+    /path/to/images/ /path/to/images_annotated/
 ```
 
 All files with extensions `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, or `.webp`
-inside `<input_dir>` are processed. The output directory is created
+inside the input directory are processed. The output directory is created
 automatically if it does not exist.
 
 ---
