@@ -110,6 +110,16 @@ top of `bb_locate_and_annotate.py`:
 | `WRITE_LABEL` | `False` | Write the object label above each box |
 | `WRITE_COORDS` | `False` | Write `(x1,y1,x2,y2)` above each box |
 | `FONT_SIZE` | `14` | Font size for label and coordinate text |
+| `RANDOM_SEED` | `42` | RNG seed reset before every image (see note below) |
+
+> **Batch consistency note:** The LocateAnything model uses stochastic sampling
+> (`do_sample=True`, `temperature=0.7`). Without a fixed seed, each image's
+> generation shifts the GPU random state, and occasionally an image gets an
+> unlucky state where the model never produces the end-of-sequence token — it
+> keeps generating `<box>` entries until the 2048-token limit, yielding hundreds
+> of spurious detections. Setting `RANDOM_SEED` resets the RNG to the same
+> state before every call so batch mode and single-image mode produce identical
+> results. Change the value freely; set it to `None` to disable the reset.
 
 ---
 

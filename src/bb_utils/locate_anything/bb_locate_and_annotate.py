@@ -35,6 +35,7 @@ Configuration:
 import argparse
 import re
 import sys
+import torch
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -51,6 +52,7 @@ LINE_WIDTH      = 1          # bounding box outline thickness in pixels
 WRITE_COORDS    = False      # write (x1,y1,x2,y2) on each box
 WRITE_LABEL     = False      # write the object label on each box
 FONT_SIZE       = 14         # font size for label and coordinate text
+RANDOM_SEED     = 42         # fixed RNG seed reset before each image (ensures consistent results across batch)
 # ---------------------------------------------------------------------------
 
 # Make locateanything_worker importable regardless of working directory
@@ -164,6 +166,11 @@ def draw_boxes(
 
 def process_image(worker: LocateAnythingWorker, input_path: Path, output_path: Path) -> None:
     """Run detection on one image and save the annotated result."""
+    # Reset RNG state before each call so stochastic sampling (do_sample=True)
+    # in the model gives the same result regardless of batch position.
+    torch.manual_seed(RANDOM_SEED)
+    torch.cuda.manual_seed_all(RANDOM_SEED)
+
     img = Image.open(input_path).convert("RGB")
 
     result = worker.detect(img, QUERY_LABELS)
