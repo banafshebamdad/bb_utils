@@ -38,11 +38,35 @@ bounding boxes drawn on them.
 
 LocateAnything must be installed in the Python environment used to run this
 script. It is not a declared dependency of `bb_utils` because it lives in a
-separate repository (`~/eagle`). Follow the setup instructions in
-`~/eagle/Embodied/` to install it.
+separate repository (`~/eagle`).
 
-Minimum Python packages required (already satisfied by the LocateAnything
-environment):
+### Setting up the LocateAnything environment
+
+```bash
+conda update -n base -c defaults conda
+conda create -n locateanything python=3.10 pip -y
+conda activate locateanything
+
+git clone https://github.com/NVlabs/Eagle.git eagle
+cd eagle/Embodied
+pip install -e .
+```
+
+### Troubleshooting: PyTorch / CUDA mismatch
+
+If you encounter CUDA-related errors at runtime, reinstall PyTorch with the
+correct CUDA build (adjust the `cu126` suffix to match your driver):
+
+```bash
+conda activate locateanything
+python -m pip uninstall torch torchvision torchaudio -y
+python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+```
+
+### Minimum additional requirements
+
+The following package is required by `bb_locate_and_annotate.py` and is already
+satisfied by the LocateAnything environment:
 
 - `Pillow`
 
