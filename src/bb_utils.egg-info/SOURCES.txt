@@ -29,10 +29,12 @@ src/bb_utils/segmentation/base.py
 src/bb_utils/segmentation/deeplab_backend.py
 src/bb_utils/segmentation/factory.py
 src/bb_utils/segmentation/mask2former_backend.py
+src/bb_utils/segmentation/sam3_backend.py
 src/bb_utils/segmentation/utils.py
 src/bb_utils/segmentation/yolo_backend.py
 src/bb_utils/utils/__init__.py
 src/bb_utils/utils/inspect_npz.py
+src/bb_utils/utils/video_from_images.py
 tests/test_analyzer.py
 tests/test_cli.py
 tests/test_confidence_function.py

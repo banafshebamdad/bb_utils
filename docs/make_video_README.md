@@ -33,19 +33,18 @@ supplied as CLI flags.
 # Install the package (editable)
 pip install -e bb_utils
 
-# Generate a 30 fps MP4 from all PNGs in a directory
-bb-make-video --config bb_utils/configs/make_video.yaml \
+bb-make-video --config configs/make_video.yaml \
               --images-dir /path/to/images \
               --output /path/to/output.mp4
 
 # Validate config and discovered frames without writing anything
-bb-make-video --config bb_utils/configs/make_video.yaml \
+bb-make-video --config configs/make_video.yaml \
               --images-dir /path/to/images \
               --output /path/to/output.mp4 \
               --dry-run
 
 # Overwrite an existing output file
-bb-make-video --config bb_utils/configs/make_video.yaml \
+bb-make-video --config configs/make_video.yaml \
               --images-dir /path/to/images \
               --output /path/to/output.mp4 \
               --force
@@ -69,7 +68,7 @@ bb-make-video --config bb_utils/configs/make_video.yaml \
 ## Config reference
 
 All settings live under the top-level `video:` key.  A fully annotated
-example is provided in [`configs/make_video.yaml`](../configs/make_video.yaml).
+example is provided in [`configs/make_video.yaml`](configs/make_video.yaml).
 
 ```yaml
 video:
@@ -85,18 +84,6 @@ video:
     end: null
 ```
 
-### fps
-
-Frames per second of the output video.
-
-| Type | Default |
-|---|---|
-| float | `30` |
-
-```yaml
-video:
-  fps: 25
-```
 
 ### codec
 

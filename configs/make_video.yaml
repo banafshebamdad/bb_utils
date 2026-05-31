@@ -1,6 +1,6 @@
 #
 # Config: make_video.yaml
-# Author: Banafshe Bamdad
+# Author: Banafshe Bamdad + Claude Code
 # Date: 2026-05-30
 #
 # Pipeline: bb-make-video (bb_utils)
@@ -32,13 +32,13 @@
 #   Set start and end to null to include all discovered frames.
 #
 video:
-  fps: 30                # frames per second of the output video
+  fps: 10                # frames per second of the output video
   codec: "mp4v"          # FourCC codec string (see supported codecs above)
   image_glob: "*.png"    # glob pattern for image discovery; e.g. "*.jpg", "frame_*.png"
-  sort_by: "name"        # "name" (lexicographic) or "mtime" (modification time)
+  sort_by: "mtime"        # "name" (lexicographic) or "mtime" (modification time)
   resize:
-    width: null          # target width in pixels; null = keep native width
-    height: null         # target height in pixels; null = keep native height
+    width: 640          # target width in pixels; null = keep native width
+    height: 480         # target height in pixels; null = keep native height
   frame_range:
     start: null          # 0-based inclusive start index; null = first frame
     end: null            # 0-based inclusive end index;   null = last frame
