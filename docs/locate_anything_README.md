@@ -1,4 +1,4 @@
-# LocateAnything — Object Detection and Bounding-Box Annotation
+# LocateAnything: Object Detection and Bounding-Box Annotation
 
 `bb_utils.locate_anything` provides a script that runs the
 [NVIDIA LocateAnything](https://huggingface.co/nvidia/LocateAnything-3B) model
@@ -28,7 +28,7 @@ bounding boxes drawn on them.
 1. Runs object detection on each input image.
 2. Parses the raw model answer to extract bounding box coordinates.
 3. Rescales the normalised coordinates (0–1000 grid) to actual pixel coordinates.
-4. Draws the boxes — and optionally the label and coordinates — on a **copy** of
+4. Draws the boxes, and optionally the label and coordinates, on a **copy** of
    the image (the original is never modified).
 5. Saves the annotated image to the specified output path.
 
@@ -74,14 +74,23 @@ satisfied by the LocateAnything environment:
 
 ## Installation
 
-After cloning / pulling `bb_utils`, reinstall the package so the new console
-script entry point is registered:
+`bb_locate_and_annotate.py` imports `locateanything_worker`, which is only
+available in the **`locateanything`** conda environment. Both this script and
+`bb_utils` must therefore be used from that environment.
+
+After setting up the `locateanything` environment (see [Prerequisites](#prerequisites)),
+install `bb_utils` into it so the console script entry point is registered:
 
 ```bash
+conda activate locateanything
 pip install -e /home/ubuntu/bb_utils
 ```
 
-This makes the command `bb-locate-and-annotate` available on `PATH`.
+This makes the command `bb-locate-and-annotate` available on `PATH` within the
+`locateanything` environment.
+
+> **Note:** Do **not** run this script from the `sp-score` or any other
+> environment — `locateanything_worker` will not be found there.
 
 ---
 

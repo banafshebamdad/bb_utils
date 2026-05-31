@@ -24,6 +24,8 @@ src/bb_utils/label_generation/sanity_check.py
 src/bb_utils/label_generation/slam_validation.py
 src/bb_utils/label_generation/validate_csv_to_npz.py
 src/bb_utils/label_generation/validate_labels.py
+src/bb_utils/locate_anything/__init__.py
+src/bb_utils/locate_anything/bb_locate_and_annotate.py
 src/bb_utils/segmentation/__init__.py
 src/bb_utils/segmentation/base.py
 src/bb_utils/segmentation/deeplab_backend.py
