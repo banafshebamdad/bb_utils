@@ -20,6 +20,7 @@ supplied as CLI flags.
   - [sort\_by](#sort_by)
   - [resize](#resize)
   - [frame\_range](#frame_range)
+  - [overlay\_filename](#overlay_filename)
 - [Image ordering](#image-ordering)
 - [Output resolution](#output-resolution)
 - [Supported image formats](#supported-image-formats)
@@ -43,11 +44,12 @@ bb-make-video --config configs/make_video.yaml \
               --output /path/to/output.mp4 \
               --dry-run
 
-# Overwrite an existing output file
+# Burn the image filename onto every frame
 bb-make-video --config configs/make_video.yaml \
               --images-dir /path/to/images \
               --output /path/to/output.mp4 \
-              --force
+              --overlay-filename
+
 ```
 
 ---
@@ -62,6 +64,7 @@ bb-make-video --config configs/make_video.yaml \
 | `--force` | no | Overwrite the output file if it already exists |
 | `--dry-run` | no | Validate config and discover frames without writing the video |
 | `--verbose` | no | Enable debug-level logging |
+| `--overlay-filename` | no | Burn the image filename onto each frame (overrides `overlay_filename` in config) |
 
 ---
 
@@ -82,6 +85,7 @@ video:
   frame_range:
     start: null
     end: null
+  overlay_filename: false
 ```
 
 
@@ -181,6 +185,24 @@ video:
     start: 100
     end: 499   # encodes frames 100–499 (400 frames total)
 ```
+
+### overlay_filename
+
+When `true`, the filename of each source image is rendered onto the
+bottom-left corner of the corresponding video frame.  Text is drawn in
+white with a black outline so it remains readable on any background.
+
+| Type | Default |
+|---|---|
+| bool | `false` |
+
+```yaml
+video:
+  overlay_filename: true
+```
+
+The same behaviour can be enabled at the command line with `--overlay-filename`,
+which overrides the config value.
 
 ---
 

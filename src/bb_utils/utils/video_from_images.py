@@ -39,6 +39,7 @@ Config schema
       frame_range:
         start: null        # null = first discovered frame (0-based inclusive)
         end: null          # null = last discovered frame (0-based inclusive)
+      overlay_filename: false  # if true, burn the image filename onto each frame
 """
 
 import argparse
@@ -157,6 +158,7 @@ def make_video(
     frame_start: Optional[int] = None,
     frame_end: Optional[int] = None,
     force: bool = False,
+    overlay_filename: bool = False,
 ) -> int:
     """Write a video file from images in *images_dir*.
 
@@ -170,9 +172,11 @@ def make_video(
         sort_by:        Sort order for discovered files: ``"name"`` or ``"mtime"``.
         resize_width:   Target width in pixels, or ``None`` to keep native.
         resize_height:  Target height in pixels, or ``None`` to keep native.
-        frame_start:    0-based inclusive start index; ``None`` = first frame.
-        frame_end:      0-based inclusive end index; ``None`` = last frame.
-        force:          Overwrite *output_path* if it already exists.
+        frame_start:      0-based inclusive start index; ``None`` = first frame.
+        frame_end:        0-based inclusive end index; ``None`` = last frame.
+        force:            Overwrite *output_path* if it already exists.
+        overlay_filename: If ``True``, burn the image filename (stem only) onto
+                          the bottom-left corner of every frame.
 
     Returns:
         Number of frames written.
@@ -220,6 +224,8 @@ def make_video(
                 continue
             if (img.shape[1], img.shape[0]) != (width, height):
                 img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
+            if overlay_filename:
+                _draw_filename(img, frame_path.name)
             writer.write(img)
     finally:
         writer.release()
@@ -227,6 +233,21 @@ def make_video(
     n_frames = len(frames)
     logger.info("Video written to %s  (%d frames)", output_path, n_frames)
     return n_frames
+
+
+def _draw_filename(img, filename: str) -> None:
+    """Burn *filename* onto the bottom-left corner of *img* in-place."""
+    import cv2
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.5
+    thickness = 1
+    h = img.shape[0]
+    origin = (8, h - 10)
+    # Black outline for readability on any background
+    cv2.putText(img, filename, origin, font, scale, (0, 0, 0), thickness + 2, cv2.LINE_AA)
+    # White text on top
+    cv2.putText(img, filename, origin, font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
 
 
 def _progress_iter(items):
@@ -263,6 +284,7 @@ def _parse_video_cfg(config: dict) -> dict:
         "resize_height": resize.get("height"),
         "frame_start": frame_range.get("start"),
         "frame_end": frame_range.get("end"),
+        "overlay_filename": bool(video.get("overlay_filename", False)),
     }
 
 
@@ -314,6 +336,10 @@ def main() -> None:
         "--dry-run", action="store_true",
         help="Validate config and discover frames without writing the video.",
     )
+    parser.add_argument(
+        "--overlay-filename", action="store_true", default=None,
+        help="Burn the image filename onto each frame (overrides config).",
+    )
 
     args = parser.parse_args()
     _setup_logging(args.verbose)
@@ -329,6 +355,9 @@ def main() -> None:
 
     config = _load_config(args.config)
     cfg = _parse_video_cfg(config)
+    # CLI flag overrides config value when explicitly set
+    if args.overlay_filename is not None:
+        cfg["overlay_filename"] = args.overlay_filename
 
     if args.dry_run:
         logger.info("DRY RUN — configuration summary")
@@ -340,6 +369,7 @@ def main() -> None:
         logger.info("  sort_by      : %s", cfg["sort_by"])
         logger.info("  resize       : %s x %s", cfg["resize_width"], cfg["resize_height"])
         logger.info("  frame_range  : [%s, %s]", cfg["frame_start"], cfg["frame_end"])
+        logger.info("  overlay_filename: %s", cfg["overlay_filename"])
         try:
             frames = _discover_frames(
                 images_dir=args.images_dir,
@@ -369,6 +399,7 @@ def main() -> None:
             frame_start=cfg["frame_start"],
             frame_end=cfg["frame_end"],
             force=args.force,
+            overlay_filename=cfg["overlay_filename"],
         )
         logger.info("Done. %d frames encoded.", n)
     except FileExistsError as exc:
