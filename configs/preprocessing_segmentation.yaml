@@ -26,21 +26,21 @@
 # ---------------------------------------------------------------------------
 #
 # Option A — same rotation for all images:
-# preprocessing:
-#   pre_rotation_deg: 90    # rotation magnitude in degrees; must be a multiple of 90
-#   rotation_direction: cw  # "cw" (clockwise, default) or "ccw" (counter-clockwise)
-#   rotate_mask_back: true  # rotate mask back to original orientation (default: true)
+preprocessing:
+  pre_rotation_deg: 90    # rotation magnitude in degrees; must be a multiple of 90
+  rotation_direction: cw  # "cw" (clockwise, default) or "ccw" (counter-clockwise)
+  rotate_mask_back: false  # rotate mask back to original orientation (default: true)
 #
 # Option B — per-camera rotation (camera inferred from filename: *_L_* / *_R_*):
-preprocessing:
-  rotation_direction: cw   # global default direction; overridden per-camera by camera_directions 
-  camera_directions:       # optional per-camera direction overrides
-    L: cw                  # left camera: clockwise
-    R: ccw                 # right camera: counter-clockwise
-  rotate_mask_back: false  # skip rotating mask back to original orientation
-  cameras:
-    L: 90    # left camera: 90° in the direction set by camera_directions.L (cw)
-    R: 90   # right camera: 90° in the direction set by camera_directions.R (ccw)
+# preprocessing:
+#   rotation_direction: cw   # global default direction; overridden per-camera by camera_directions 
+#   camera_directions:       # optional per-camera direction overrides
+#     L: cw                  # left camera: clockwise
+#     R: ccw                 # right camera: counter-clockwise
+#   rotate_mask_back: false  # skip rotating mask back to original orientation
+#   cameras:
+#     L: 90    # left camera: 90° in the direction set by camera_directions.L (cw)
+#     R: 90   # right camera: 90° in the direction set by camera_directions.R (ccw)
 #
 # Option C — per-camera with global fallback:
 # preprocessing:

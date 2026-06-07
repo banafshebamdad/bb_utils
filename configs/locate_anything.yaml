@@ -1,0 +1,67 @@
+#
+# Config: locate_anything.yaml
+# Author: Banafshe Bamdad
+# Date: 2026-06-07
+#
+# Pipeline: bb-locate-and-annotate (bb_utils)
+#
+# All tuneable parameters for bb_locate_and_annotate.py.
+# Pass this file with --config when running the script.
+#
+
+# ---------------------------------------------------------------------------
+# Model
+# ---------------------------------------------------------------------------
+model:
+  model_id:           "nvidia/LocateAnything-3B"  # HuggingFace model identifier
+  locateanything_dir: "~/eagle/Embodied"           # directory containing locateanything_worker.py
+  query_labels:       ["person"]                   # object classes to detect
+  random_seed:        42                           # RNG seed reset before each image
+                                                   # ensures identical results across single-image
+                                                   # and batch mode (do_sample=True is stochastic)
+  iou_threshold:      0.5                          # IoU above which a box is suppressed as a
+                                                   # near-duplicate; set to 1.0 to disable
+
+# ---------------------------------------------------------------------------
+# Annotation / visualisation
+# ---------------------------------------------------------------------------
+annotation:
+  box_color:    "green"   # bounding box outline and text-background colour
+  text_color:   "white"   # overlay text colour
+  line_width:   1         # bounding box outline thickness in pixels
+  write_label:  false     # write the object label above each box
+  write_coords: false     # write (x1,y1,x2,y2) above each box
+  font_size:    14        # font size for label and coordinate text
+
+# ---------------------------------------------------------------------------
+# Optional pre-rotation (applied before inference; boxes transformed back after)
+# ---------------------------------------------------------------------------
+#
+# Option A — same rotation for all images:
+# preprocessing:
+#   pre_rotation_deg: 90          # rotation magnitude; must be a multiple of 90
+#   rotation_direction: cw        # "cw" (clockwise, default) or "ccw"
+#   rotate_annotated_back: true   # transform boxes back to original orientation (default: true)
+#
+# Option B — per-camera rotation (camera inferred from filename: *_L_* / *_R_*):
+# preprocessing:
+#   rotation_direction: cw        # global default direction
+#   camera_directions:             # optional per-camera direction overrides
+#     L: cw
+#     R: ccw
+#   rotate_annotated_back: true
+#   cameras:
+#     L: 90
+#     R: 90
+#
+# Option C — per-camera with global fallback:
+# preprocessing:
+#   pre_rotation_deg: 90          # used when camera cannot be detected from filename
+#   rotation_direction: cw
+#   camera_directions:
+#     L: cw
+#     R: ccw
+#   rotate_annotated_back: true
+#   cameras:
+#     L: 90
+#     R: 90

@@ -35,10 +35,10 @@ video:
   fps: 10                # frames per second of the output video
   codec: "mp4v"          # FourCC codec string (see supported codecs above)
   image_glob: "*.png"    # glob pattern for image discovery; e.g. "*.jpg", "frame_*.png"
-  sort_by: "name"        # "name" (lexicographic) or "mtime" (modification time)
+  sort_by: "mtime"        # "name" (lexicographic) or "mtime" (modification time)
   resize:
-    width: 640          # target width in pixels; null = keep native width
-    height: 480         # target height in pixels; null = keep native height
+    width: 480 #640          # target width in pixels; null = keep native width
+    height: 640 #480         # target height in pixels; null = keep native height
   frame_range:
     start: null          # 0-based inclusive start index; null = first frame
     end: null            # 0-based inclusive end index;   null = last frame
