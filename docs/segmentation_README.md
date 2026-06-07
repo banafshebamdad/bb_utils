@@ -622,6 +622,14 @@ python evaluation/segmentation_spotcheck.py \
 | `--alpha` | `0.45` | Opacity of the red mask overlay (0 = invisible, 1 = solid) |
 | `--all` | off | Process every mask in `--masks-dir` instead of sampling |
 
+**Preprocessing config auto-detection**: `bb-run-segmentation` copies the active
+YAML config into `--output-dir` for reproducibility.  The spotcheck script
+reads that copy automatically.  When `preprocessing.rotate_mask_back: false`
+is detected, the script rotates each source image **forward** (using the same
+rotation settings that were applied during segmentation) before overlaying the
+mask, so the overlay is always geometrically correct regardless of whether the
+masks were saved in the rotated or original orientation.
+
 Frames are drawn from four density buckets (`zero`, `sparse`, `medium`,
 `dense`) so both empty scenes and heavily masked frames are always represented.
 Output filenames encode the bucket and density value, e.g.
