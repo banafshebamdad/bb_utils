@@ -1,6 +1,6 @@
 # Segmentation Backend
 
-`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on RGB images, normalising each model's output into a single binary mask format that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on images, normalising each model's output into a single binary mask format that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
 
 ---
 
@@ -437,11 +437,11 @@ hf auth logout
 
 Images can optionally be rotated before being passed to the segmentation backend, and the resulting mask can be rotated back afterwards so it remains pixel-aligned with the original source image.
 
-Rotation is configured via a top-level `preprocessing:` section in the YAML config.  **Only multiples of 90° are supported** (0, 90, 180, 270, …).  The rotation direction is configurable: `cw` (clockwise, default) or `ccw` (counter-clockwise).  Rotation is performed with `np.rot90` — no interpolation is applied and pixel values are never altered.
+Rotation is configured via a top-level `preprocessing:` section in the YAML config.  **Only multiples of 90° are supported** (0, 90, 180, 270, …).  The rotation direction is configurable: `cw` (clockwise, default) or `ccw` (counter-clockwise).  Rotation is performed with `np.rot90`, no interpolation is applied and pixel values are never altered.
 
 Three configuration modes are available:
 
-### Global rotation — same angle for all images
+### Global rotation: same angle for all images
 
 ```yaml
 preprocessing:
@@ -450,7 +450,7 @@ preprocessing:
   rotate_mask_back: true     # rotate mask back to original orientation after segmentation (default: true)
 ```
 
-### Per-camera rotation — different angles for left (`L`) and right (`R`) cameras
+### Per-camera rotation: different angles for left (`L`) and right (`R`) cameras
 
 The camera is identified automatically from the filename stem using the
 InCrowd-VI naming convention `{sequence}_{L|R}_{timestamp_us}.png`.
@@ -467,7 +467,7 @@ preprocessing:
     R: 90   # right camera: 90° CCW
 ```
 
-### Mixed — per-camera with a global fallback
+### Mixed: per-camera with a global fallback
 
 The `cameras` dict takes precedence.  `pre_rotation_deg` is used when the
 camera indicator cannot be parsed from the filename or when the camera key
