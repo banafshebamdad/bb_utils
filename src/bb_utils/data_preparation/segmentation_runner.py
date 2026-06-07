@@ -11,7 +11,9 @@ This module orchestrates per-frame segmentation for any directory of PNG images.
 It handles:
 
   - Loading PNG frames (grayscale or RGB) and converting to 3-channel RGB
+  - Optionally rotating the image before passing it to the backend
   - Delegating inference to a ``bb_utils.segmentation.SegmentationBackend``
+  - Optionally rotating the generated mask back to the original orientation
   - Applying mask dilation via ``bb_utils.segmentation.utils.dilate_mask``
   - Writing per-frame mask NPZ files to::
 
@@ -44,14 +46,27 @@ Config schema (model settings only)
       target_classes: [0]   # 0 = person in COCO
       mask_dilation_px: 5
 
-    model:
-      backend: yolo
-      model_name: yolov8n-seg
-      device: cpu
-      confidence_threshold: 0.25
-      iou_threshold: 0.45
-      target_classes: [0]   # 0 = person in COCO
-      mask_dilation_px: 5
+Pre-rotation config (optional, top-level)
+-----------------------------------------
+    # Global rotation — same angle applied to all images:
+    preprocessing:
+      pre_rotation_deg: 90   # clockwise; must be a multiple of 90; null = no rotation
+      rotate_mask_back: true # rotate mask back to original orientation (default true)
+
+    # Per-camera rotation — camera inferred from filename stem (_L_ / _R_):
+    preprocessing:
+      rotate_mask_back: true
+      cameras:
+        L: 90
+        R: 270
+
+    # Mixed — cameras dict takes precedence; pre_rotation_deg is the fallback:
+    preprocessing:
+      pre_rotation_deg: 90
+      rotate_mask_back: true
+      cameras:
+        L: 90
+        R: 270
 """
 
 import argparse
@@ -69,8 +84,102 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Per-frame segmentation
+# Pre-rotation helpers
 # ---------------------------------------------------------------------------
+
+def _camera_from_stem(stem: str) -> Optional[str]:
+    """Return the camera indicator (``'L'`` or ``'R'``) embedded in *stem*.
+
+    Expects the InCrowd-VI filename convention::
+
+        {sequence}_{L|R}_{timestamp_us}
+
+    The camera indicator is the second-to-last ``_``-separated token.
+    Returns ``None`` when the stem does not match the expected pattern.
+    """
+    parts = stem.split("_")
+    if len(parts) >= 2 and parts[-2] in ("L", "R"):
+        return parts[-2]
+    return None
+
+
+def _resolve_rotation(stem: str, pre_cfg: Optional[dict]) -> Optional[int]:
+    """Return the pre-rotation angle (degrees, CW) for the frame identified by *stem*.
+
+    Resolution order:
+
+    1. If *pre_cfg* contains a ``cameras`` dict, detect the camera from *stem*
+       and look up its rotation.  If the camera is not found in the dict, fall
+       through to step 2.
+    2. Return ``pre_cfg.get("pre_rotation_deg")``, which may be ``None``.
+
+    Args:
+        stem:    Filename stem (without extension) of the source image.
+        pre_cfg: Contents of the ``preprocessing:`` YAML section, or ``None``.
+
+    Returns:
+        Integer rotation in degrees (clockwise), or ``None`` when no rotation
+        should be applied.
+    """
+    if not pre_cfg:
+        return None
+    cameras_map = pre_cfg.get("cameras")
+    if cameras_map:
+        camera = _camera_from_stem(stem)
+        if camera is None:
+            logger.debug(
+                "Could not detect camera from stem '%s'; "
+                "falling back to pre_rotation_deg.",
+                stem,
+            )
+        else:
+            rotation = cameras_map.get(camera)
+            if rotation is not None:
+                return int(rotation)
+            logger.debug(
+                "Camera '%s' not found in preprocessing.cameras; "
+                "falling back to pre_rotation_deg.",
+                camera,
+            )
+    return pre_cfg.get("pre_rotation_deg")
+
+
+def _resolve_direction(stem: str, pre_cfg: Optional[dict]) -> str:
+    """Return the rotation direction (``'cw'`` or ``'ccw'``) for *stem*.
+
+    Resolution order:
+
+    1. If *pre_cfg* contains a ``camera_directions`` dict, detect the camera
+       from *stem* and look up its direction.  If the camera is not found,
+       fall through to step 2.
+    2. Return ``pre_cfg.get("rotation_direction", "cw")``, lowercased.
+
+    Args:
+        stem:    Filename stem (without extension) of the source image.
+        pre_cfg: Contents of the ``preprocessing:`` YAML section, or ``None``.
+
+    Returns:
+        ``'cw'`` or ``'ccw'``.
+
+    Raises:
+        ValueError: If the resolved direction is not ``'cw'`` or ``'ccw'``.
+    """
+    direction = "cw"  # hardcoded default
+    if pre_cfg:
+        cam_dir_map = pre_cfg.get("camera_directions")
+        if cam_dir_map:
+            camera = _camera_from_stem(stem)
+            if camera is not None and camera in cam_dir_map:
+                direction = str(cam_dir_map[camera]).lower()
+            else:
+                direction = pre_cfg.get("rotation_direction", "cw").lower()
+        else:
+            direction = pre_cfg.get("rotation_direction", "cw").lower()
+    if direction not in ("cw", "ccw"):
+        raise ValueError(
+            f"rotation_direction must be 'cw' or 'ccw', got '{direction}'."
+        )
+    return direction
 
 def segment_frame(
     image_path: Path,
@@ -79,16 +188,25 @@ def segment_frame(
     target_classes: List[int],
     dilation_radius: int,
     force: bool = False,
+    preprocessing_cfg: Optional[dict] = None,
+    rotate_mask_back: bool = True,
 ) -> bool:
     """Segment one frame and write the mask NPZ.
 
     Args:
-        image_path:      Path to the source PNG (grayscale or RGB, any depth).
-        out_path:        Destination NPZ path.
-        backend:         ``SegmentationBackend`` instance.
-        target_classes:  Class indices to include in the mask.
-        dilation_radius: Dilation radius in pixels (0 = no dilation).
-        force:           Overwrite existing NPZ when True.
+        image_path:       Path to the source PNG (grayscale or RGB, any depth).
+        out_path:         Destination NPZ path.
+        backend:          ``SegmentationBackend`` instance.
+        target_classes:   Class indices to include in the mask.
+        dilation_radius:  Dilation radius in pixels (0 = no dilation).
+        force:            Overwrite existing NPZ when True.
+        preprocessing_cfg: Contents of the ``preprocessing:`` YAML section.
+                          Used to resolve the per-frame rotation angle.  When
+                          ``None`` or empty, no rotation is applied.
+        rotate_mask_back: When ``True`` (default) and a pre-rotation was
+                          applied, the generated mask is rotated back by the
+                          inverse angle so it remains pixel-aligned with the
+                          original source image.
 
     Returns:
         True if the mask was written; False if skipped (already exists).
@@ -102,13 +220,33 @@ def segment_frame(
     if not image_path.exists():
         raise FileNotFoundError(f"Frame image not found: {image_path}")
 
+    stem = image_path.stem
+
     # Load image — convert grayscale to 3-channel RGB
     image_rgb = _load_as_rgb(image_path)
+
+    # Optionally rotate before segmentation
+    rotation = _resolve_rotation(stem, preprocessing_cfg)
+    effective_rotation = None
+    if rotation:
+        direction = _resolve_direction(stem, preprocessing_cfg)
+        effective_rotation = rotation if direction == "cw" else -rotation
+        from bb_utils.segmentation.utils import rotate_image
+        logger.debug(
+            "Pre-rotating '%s' by %d° %s.", stem, abs(rotation), direction.upper()
+        )
+        image_rgb = rotate_image(image_rgb, effective_rotation)
 
     # Run segmentation
     mask = backend.segment(image_rgb, target_classes)
 
-    # Apply dilation
+    # Rotate mask back to original image orientation
+    if effective_rotation and rotate_mask_back:
+        from bb_utils.segmentation.utils import rotate_mask
+        logger.debug("Rotating mask for '%s' back by %d°.", stem, -effective_rotation)
+        mask = rotate_mask(mask, -effective_rotation)
+
+    # Apply dilation (in original image coordinates)
     if dilation_radius > 0:
         from bb_utils.segmentation.utils import dilate_mask
         mask = dilate_mask(mask, dilation_radius)
@@ -160,19 +298,26 @@ def run_on_dir(
     dilation_radius: int,
     force: bool = False,
     sequence: Optional[str] = None,
+    preprocessing_cfg: Optional[dict] = None,
+    rotate_mask_back: bool = True,
 ) -> Dict:
     """Segment PNG frames in *images_dir* and write mask NPZ files to *output_dir*.
 
     Args:
-        images_dir:      Flat directory containing ``*.png`` frames.
-        output_dir:      Destination directory for mask NPZ files (created if absent).
-        backend:         Configured ``SegmentationBackend`` instance.
-        target_classes:  Class indices to include in the mask.
-        dilation_radius: Dilation radius in pixels (0 = no dilation).
-        force:           Overwrite existing masks when True.
-        sequence:        Optional sequence name prefix.  When provided, only
-                         frames whose stem starts with this string are processed
-                         (glob pattern ``{sequence}*.png``).
+        images_dir:       Flat directory containing ``*.png`` frames.
+        output_dir:       Destination directory for mask NPZ files (created if absent).
+        backend:          Configured ``SegmentationBackend`` instance.
+        target_classes:   Class indices to include in the mask.
+        dilation_radius:  Dilation radius in pixels (0 = no dilation).
+        force:            Overwrite existing masks when True.
+        sequence:         Optional sequence name prefix.  When provided, only
+                          frames whose stem starts with this string are processed
+                          (glob pattern ``{sequence}*.png``).
+        preprocessing_cfg: Contents of the ``preprocessing:`` YAML section.
+                          Passed through to :func:`segment_frame` for per-frame
+                          rotation resolution.
+        rotate_mask_back: When ``True`` (default), the mask is rotated back to
+                          the original image orientation after segmentation.
 
     Returns:
         Summary dict with ``"total"``, ``"written"``, ``"skipped"``, ``"failed"``.
@@ -215,6 +360,8 @@ def run_on_dir(
                 target_classes=target_classes,
                 dilation_radius=dilation_radius,
                 force=force,
+                preprocessing_cfg=preprocessing_cfg,
+                rotate_mask_back=rotate_mask_back,
             )
             if written:
                 n_written += 1
@@ -290,6 +437,9 @@ def main() -> None:
 
     model_cfg = config.get("model", {})
 
+    pre_cfg = config.get("preprocessing") or {}
+    rotate_mask_back = pre_cfg.get("rotate_mask_back", True)
+
     if args.dry_run:
         logger.info("DRY RUN — configuration summary")
         logger.info("  backend            : %s", model_cfg.get("backend"))
@@ -301,6 +451,22 @@ def main() -> None:
         logger.info("  images_dir         : %s", args.images_dir)
         logger.info("  output_dir         : %s", args.output_dir)
         logger.info("  sequence filter    : %s", args.sequence or "(all frames)")
+        rotation_direction = pre_cfg.get("rotation_direction", "cw").lower()
+        cam_dir_map = pre_cfg.get("camera_directions", {})
+        cameras_map = pre_cfg.get("cameras")
+        if cameras_map:
+            logger.info("  rotation mode      : per-camera")
+            for cam, deg in cameras_map.items():
+                cam_dir = cam_dir_map.get(cam, rotation_direction).lower()
+                logger.info("    camera %-3s       : %s° %s", cam, deg, cam_dir.upper())
+        else:
+            logger.info(
+                "  pre_rotation_deg   : %s",
+                pre_cfg.get("pre_rotation_deg") or "(none)",
+            )
+            if pre_cfg.get("pre_rotation_deg"):
+                logger.info("  rotation_direction : %s", rotation_direction.upper())
+        logger.info("  rotate_mask_back   : %s", rotate_mask_back)
         return
 
     # Instantiate backend
@@ -328,6 +494,8 @@ def main() -> None:
         dilation_radius=dilation_radius,
         force=args.force,
         sequence=args.sequence,
+        preprocessing_cfg=pre_cfg or None,
+        rotate_mask_back=rotate_mask_back,
     )
     elapsed = time.time() - t0
     logger.info(

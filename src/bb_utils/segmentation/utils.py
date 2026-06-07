@@ -20,6 +20,12 @@ union_masks
 resize_mask
     Resize a mask to a target (H, W) using nearest-neighbour interpolation
     to preserve binary values.
+rotate_image
+    Rotate an RGB image clockwise by a multiple of 90 degrees using exact
+    np.rot90 — no interpolation, no pixel-value changes.
+rotate_mask
+    Rotate a binary mask clockwise by a multiple of 90 degrees.  Negative
+    degrees are accepted and are used to invert a prior rotation.
 """
 
 from typing import List, Tuple
@@ -130,3 +136,61 @@ def resize_mask(
     row_idx = (np.arange(H_new) * H_src / H_new).astype(int)
     col_idx = (np.arange(W_new) * W_src / W_new).astype(int)
     return mask[np.ix_(row_idx, col_idx)].astype(np.uint8)
+
+
+def rotate_image(image: np.ndarray, degrees: int) -> np.ndarray:
+    """Rotate an RGB image clockwise by *degrees* using exact ``np.rot90``.
+
+    Only multiples of 90 are supported.  No interpolation is performed, so
+    pixel values are never altered — the output is a view or copy of the
+    input with axes permuted.
+
+    Args:
+        image:   uint8 (H, W, 3) RGB image.
+        degrees: Clockwise rotation angle in degrees.  Must be a multiple of
+                 90.  Values are normalised modulo 360, so 360 is a no-op.
+
+    Returns:
+        uint8 array with shape ``(H, W, 3)`` (0° / 180°) or
+        ``(W, H, 3)`` (90° / 270°).
+
+    Raises:
+        ValueError: If *degrees* is not a multiple of 90.
+    """
+    if degrees % 90 != 0:
+        raise ValueError(
+            f"rotate_image: degrees must be a multiple of 90, got {degrees}."
+        )
+    # np.rot90(m, k=1) rotates 90° CCW; negative k gives CW.
+    k = -(degrees // 90) % 4
+    if k == 0:
+        return image.astype(np.uint8)
+    return np.rot90(image, k=k).astype(np.uint8)
+
+
+def rotate_mask(mask: np.ndarray, degrees: int) -> np.ndarray:
+    """Rotate a binary mask clockwise by *degrees* using exact ``np.rot90``.
+
+    Negative *degrees* are accepted; they are used to invert a prior forward
+    rotation (e.g. ``rotate_mask(mask, -90)`` undoes a ``rotate_image(..., 90)``).
+
+    Args:
+        mask:    uint8 (H, W) binary mask with values in {0, 1}.
+        degrees: Clockwise rotation angle in degrees.  Must be a multiple of
+                 90.  Negative values rotate counter-clockwise by that amount.
+
+    Returns:
+        uint8 array with shape ``(H, W)`` (0° / 180°) or
+        ``(W, H)`` (90° / 270°).
+
+    Raises:
+        ValueError: If *degrees* is not a multiple of 90.
+    """
+    if degrees % 90 != 0:
+        raise ValueError(
+            f"rotate_mask: degrees must be a multiple of 90, got {degrees}."
+        )
+    k = -(degrees // 90) % 4
+    if k == 0:
+        return mask.astype(np.uint8)
+    return np.rot90(mask, k=k).astype(np.uint8)

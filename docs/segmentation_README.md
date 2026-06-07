@@ -13,6 +13,7 @@
   - [Mask2FormerBackend](#mask2formerbackend)
   - [DeepLabBackend](#deeplabbackend)
   - [Sam3Backend](#sam3backend)
+- [Image pre-rotation](#image-pre-rotation)
 - [CLI usage](#cli-usage)
 - [Config format](#config-format)
 - [Output files](#output-files)
@@ -432,6 +433,75 @@ hf auth logout
 
 ---
 
+## Image pre-rotation
+
+Images can optionally be rotated before being passed to the segmentation backend, and the resulting mask can be rotated back afterwards so it remains pixel-aligned with the original source image.
+
+Rotation is configured via a top-level `preprocessing:` section in the YAML config.  **Only multiples of 90° are supported** (0, 90, 180, 270, …).  The rotation direction is configurable: `cw` (clockwise, default) or `ccw` (counter-clockwise).  Rotation is performed with `np.rot90` — no interpolation is applied and pixel values are never altered.
+
+Three configuration modes are available:
+
+### Global rotation — same angle for all images
+
+```yaml
+preprocessing:
+  pre_rotation_deg: 90       # rotation magnitude; must be a multiple of 90; null or absent = no rotation
+  rotation_direction: cw     # "cw" (clockwise, default) or "ccw" (counter-clockwise)
+  rotate_mask_back: true     # rotate mask back to original orientation after segmentation (default: true)
+```
+
+### Per-camera rotation — different angles for left (`L`) and right (`R`) cameras
+
+The camera is identified automatically from the filename stem using the
+InCrowd-VI naming convention `{sequence}_{L|R}_{timestamp_us}.png`.
+
+```yaml
+preprocessing:
+  rotation_direction: cw     # global default direction; overridden per-camera by camera_directions
+  camera_directions:          # optional per-camera direction overrides
+    L: cw                     # left camera: clockwise
+    R: ccw                    # right camera: counter-clockwise
+  rotate_mask_back: true
+  cameras:
+    L: 90    # left camera:  90° CW
+    R: 90   # right camera: 90° CCW
+```
+
+### Mixed — per-camera with a global fallback
+
+The `cameras` dict takes precedence.  `pre_rotation_deg` is used when the
+camera indicator cannot be parsed from the filename or when the camera key
+is absent from the dict.
+
+```yaml
+preprocessing:
+  pre_rotation_deg: 90       # fallback when camera is undetectable
+  rotation_direction: cw     # global default direction
+  camera_directions:          # optional per-camera direction overrides
+    L: cw
+    R: ccw
+  rotate_mask_back: true
+  cameras:
+    L: 90
+    R: 90
+```
+
+### `preprocessing:` config keys
+
+| Key | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `pre_rotation_deg` | int | no | `null` | Rotation magnitude in degrees applied to all images (must be a multiple of 90); direction is set by `rotation_direction` |
+| `rotation_direction` | str | no | `"cw"` | Global rotation direction: `"cw"` (clockwise) or `"ccw"` (counter-clockwise); overridden per-camera by `camera_directions` |
+| `camera_directions` | dict | no | `{}` | Per-camera direction overrides; keys must be `"L"` or `"R"` (uppercase); values are `"cw"` or `"ccw"`; takes precedence over `rotation_direction` for that camera |
+| `rotate_mask_back` | bool | no | `true` | Rotate the mask back by the inverse angle after segmentation so it stays pixel-aligned with the source image |
+| `cameras` | dict | no | `{}` | Per-camera rotation magnitude overrides; keys must be `"L"` or `"R"` (uppercase); values are degrees (multiples of 90); direction is resolved via `camera_directions` then `rotation_direction` |
+
+**Pixel-alignment guarantee**: when `rotate_mask_back: true` (the default), the saved mask has the same shape `(H, W)` as the source image and `mask[i, j]` corresponds to `image[i, j]`.  When `rotate_mask_back: false`, the mask is saved in the rotated orientation (useful when downstream code consumes the rotated image directly).
+
+**Dilation** (`mask_dilation_px`) is always applied after the back-rotation, i.e. in original image coordinates.
+
+---
+
 ## CLI usage
 
 **Prerequisites**: install the backend dependency before running:
@@ -508,7 +578,11 @@ Each file contains a single array:
 |---|---|---|---|
 | `mask` | `uint8` | `(H, W)` | `1` = detected pedestrian pixel; `0` = static background |
 
-The mask is in the same pixel space as the source image (no spatial transformation applied).
+When no `preprocessing:` section is present (or `pre_rotation_deg` is `null`), the mask is in the same pixel space as the source image (no spatial transformation applied).
+
+When `preprocessing.rotate_mask_back: true` (default), the same guarantee holds even when pre-rotation is active — the mask is rotated back after segmentation and `mask[i, j]` corresponds to `image[i, j]`.
+
+When `preprocessing.rotate_mask_back: false`, the mask is saved in the rotated orientation; its shape will be `(W, H)` instead of `(H, W)` for 90°/270° rotations.
 
 Loading a mask:
 
@@ -596,6 +670,40 @@ to preserve binary values.
 from bb_utils.segmentation.utils import resize_mask
 
 resized = resize_mask(mask, (480, 640))
+```
+
+### `rotate_image(image, degrees)`
+
+Rotate an RGB image clockwise by `degrees` using exact `np.rot90`.  Only
+multiples of 90 are accepted.  No interpolation is performed — pixel values
+are never altered.
+
+- `degrees % 360 == 0` is a no-op.
+- Raises `ValueError` for non-multiples of 90.
+
+```python
+from bb_utils.segmentation.utils import rotate_image
+
+rotated = rotate_image(image, degrees=90)   # 90° CW
+```
+
+### `rotate_mask(mask, degrees)`
+
+Rotate a binary mask clockwise by `degrees`.  Negative values are accepted
+and rotate counter-clockwise (useful for inverse rotation).
+
+- Uses the same `np.rot90` logic as `rotate_image`.
+- `degrees % 360 == 0` is a no-op.
+- Raises `ValueError` for non-multiples of 90.
+
+```python
+from bb_utils.segmentation.utils import rotate_mask
+
+# Forward rotation before segmentation
+rotated_img = rotate_image(image, degrees=90)
+
+# Inverse rotation to restore original orientation
+original_mask = rotate_mask(segmented_mask, degrees=-90)
 ```
 
 ---
