@@ -88,6 +88,32 @@ def _save_rgb(image_rgb: np.ndarray, path: Path) -> None:
     Image.fromarray(image_rgb).save(path)
 
 
+def _load_preprocessing_cfg(masks_dir: Path) -> dict:
+    """Return the ``preprocessing:`` section from the config YAML in *masks_dir*.
+
+    ``bb-run-segmentation`` copies the active config into the output directory
+    for reproducibility.  If a YAML file is found, this function parses it and
+    returns its ``preprocessing:`` sub-dict (or ``{}`` when the key is absent).
+    Returns an empty dict when no YAML file exists in *masks_dir*.
+    """
+    yaml_files = sorted(masks_dir.glob("*.yaml"))
+    if not yaml_files:
+        return {}
+    import yaml
+    cfg_path = yaml_files[0]
+    if len(yaml_files) > 1:
+        logger.debug(
+            "Multiple YAML files in %s; using %s", masks_dir, cfg_path.name
+        )
+    try:
+        with open(cfg_path) as fh:
+            cfg = yaml.safe_load(fh) or {}
+        return cfg.get("preprocessing") or {}
+    except Exception as exc:
+        logger.warning("Could not parse config %s: %s", cfg_path, exc)
+        return {}
+
+
 # ---------------------------------------------------------------------------
 # Overlay
 # ---------------------------------------------------------------------------
@@ -206,6 +232,21 @@ def run_spotcheck(
         logger.error("No NPZ files found in %s", masks_dir)
         return
 
+    # Read the preprocessing config that was copied into the output directory
+    # by bb-run-segmentation so we can reproduce the rotation that was applied.
+    pre_cfg = _load_preprocessing_cfg(masks_dir)
+    rotate_mask_back = pre_cfg.get("rotate_mask_back", True)
+    if pre_cfg:
+        logger.info(
+            "Preprocessing config found in masks_dir — rotate_mask_back: %s",
+            rotate_mask_back,
+        )
+        if not rotate_mask_back:
+            logger.info(
+                "Masks are in the rotated frame; source images will be "
+                "rotated forward before overlaying."
+            )
+
     if all_frames:
         logger.info("--all: processing all %d mask files", len(mask_files))
         selected = [(f, float(np.load(f)["mask"].mean())) for f in mask_files]
@@ -232,12 +273,32 @@ def run_spotcheck(
             continue
 
         if mask.shape != image_rgb.shape[:2]:
-            logger.warning(
-                "Shape mismatch for %s: mask %s vs image %s — skipping",
-                stem, mask.shape, image_rgb.shape[:2],
-            )
-            n_skipped += 1
-            continue
+            if not rotate_mask_back and pre_cfg:
+                # Masks were saved in the rotated frame (rotate_mask_back: false).
+                # Rotate the source image forward to match the mask orientation.
+                try:
+                    from bb_utils.data_preparation.segmentation_runner import (
+                        _resolve_rotation,
+                        _resolve_direction,
+                    )
+                    from bb_utils.segmentation.utils import rotate_image
+                    rotation = _resolve_rotation(stem, pre_cfg)
+                    if rotation:
+                        direction = _resolve_direction(stem, pre_cfg)
+                        effective = rotation if direction == "cw" else -rotation
+                        image_rgb = rotate_image(image_rgb, effective)
+                except Exception as exc:
+                    logger.warning(
+                        "Could not apply forward rotation for %s: %s", stem, exc
+                    )
+
+            if mask.shape != image_rgb.shape[:2]:
+                logger.warning(
+                    "Shape mismatch for %s: mask %s vs image %s — skipping",
+                    stem, mask.shape, image_rgb.shape[:2],
+                )
+                n_skipped += 1
+                continue
 
         overlay = _overlay_mask(image_rgb, mask, alpha=alpha)
         label = _bucket_label(density)
