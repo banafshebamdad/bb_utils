@@ -38,10 +38,10 @@ annotation:
 # ---------------------------------------------------------------------------
 #
 # Option A — same rotation for all images:
-# preprocessing:
-#   pre_rotation_deg: 90          # rotation magnitude; must be a multiple of 90
-#   rotation_direction: cw        # "cw" (clockwise, default) or "ccw"
-#   rotate_annotated_back: true   # transform boxes back to original orientation (default: true)
+preprocessing:
+  pre_rotation_deg: 90          # rotation magnitude; must be a multiple of 90
+  rotation_direction: cw        # "cw" (clockwise, default) or "ccw"
+  rotate_annotated_back: false   # transform boxes back to original orientation (default: true)
 #
 # Option B — per-camera rotation (camera inferred from filename: *_L_* / *_R_*):
 # preprocessing:

@@ -161,14 +161,14 @@ expected portrait/landscape input.
 
 Rotation is controlled by an optional `--config` YAML file.  The
 `preprocessing:` section of that file uses the **same schema** as
-`bb-run-segmentation` — the two pipelines can share a single config file.
+`bb-run-segmentation`.
 
 **Only multiples of 90° are supported.**  Rotation direction defaults to
 clockwise (`cw`) and is configurable per-camera.
 
 ### Config modes
 
-**Option A — same rotation for all images:**
+**Option A: same rotation for all images:**
 
 ```yaml
 preprocessing:
@@ -177,7 +177,7 @@ preprocessing:
   rotate_annotated_back: true   # transform boxes back and save in original orientation (default: true)
 ```
 
-**Option B — per-camera rotation** (camera inferred from filename `{sequence}_{L|R}_{timestamp}.png`):
+**Option B: per-camera rotation** (camera inferred from filename `{sequence}_{L|R}_{timestamp}.png`):
 
 ```yaml
 preprocessing:
@@ -191,7 +191,7 @@ preprocessing:
     R: 90
 ```
 
-**Option C — per-camera with global fallback:**
+**Option C: per-camera with global fallback:**
 
 ```yaml
 preprocessing:
@@ -220,7 +220,7 @@ preprocessing:
 the saved annotated image has the same shape `(H, W)` as the source image and
 each bounding box is correctly positioned in the original pixel space.
 When `rotate_annotated_back: false`, the annotated image is in the rotated
-orientation — useful when downstream code consumes the rotated frames directly.
+orientation.
 
 ---
 
