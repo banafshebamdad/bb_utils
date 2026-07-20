@@ -75,7 +75,7 @@ model:
   version:              "sam3"          # "sam3" or "sam3.1"
   checkpoint_path:      null            # null = auto-download from HuggingFace
   device:               "cuda"
-  confidence_threshold: 0.35             # minimum detection score in (0, 1)
+  confidence_threshold: 0.5             # minimum detection score in (0, 1)
   class_to_text:                        # optional overrides for the built-in COCO map
     0: "person"                         # COCO class 0 -> text prompt "person"
   target_classes:       [0]             # COCO class IDs; 0 = person
