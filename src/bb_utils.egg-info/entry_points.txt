@@ -5,5 +5,6 @@ bb-locate-and-annotate = bb_utils.locate_anything.bb_locate_and_annotate:main
 bb-make-video = bb_utils.utils.video_from_images:main
 bb-organize-3d-obs = bb_utils.data_preparation.organize_3d_observations:main
 bb-run-segmentation = bb_utils.data_preparation.segmentation_runner:main
+bb-validate-segmentation-output = bb_utils.data_preparation.segmentation_validator:main
 generate-superpoint-labels = bb_utils.label_generation.incrowdvi_superpoint_labels:main
 inspect-npz = bb_utils.utils.inspect_npz:main

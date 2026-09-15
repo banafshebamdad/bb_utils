@@ -15,6 +15,7 @@ src/bb_utils/confidence_decay_analysis/streaming_stats.py
 src/bb_utils/data_preparation/__init__.py
 src/bb_utils/data_preparation/organize_3d_observations.py
 src/bb_utils/data_preparation/segmentation_runner.py
+src/bb_utils/data_preparation/segmentation_validator.py
 src/bb_utils/data_preparation/world_coords_cache.py
 src/bb_utils/label_generation/__init__.py
 src/bb_utils/label_generation/analyze_confidence.py
@@ -40,5 +41,6 @@ src/bb_utils/utils/video_from_images.py
 tests/test_analyzer.py
 tests/test_cli.py
 tests/test_confidence_function.py
+tests/test_sam3_confidence.py
 tests/test_segmentation_utils.py
 tests/test_streaming_stats.py
