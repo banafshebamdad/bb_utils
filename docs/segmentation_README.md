@@ -468,6 +468,15 @@ preprocessing:
 The camera is identified automatically from the filename stem using the
 InCrowd-VI naming convention `{sequence}_{L|R}_{timestamp_us}.png`.
 
+> **InCrowd-VI frozen configuration:** The per-camera example below only
+> illustrates the configurable API and is not the setting used for the current
+> InCrowd-VI reliability-label generation. Visual validation of both `L` and
+> `R` frames confirmed a shared 90-degree clockwise pre-rotation. The frozen
+> configuration therefore uses `pre_rotation_deg: 90` and
+> `rotation_direction: cw` for both cameras, followed by rotation back to the
+> original image coordinates.
+
+
 ```yaml
 preprocessing:
   rotation_direction: cw     # global default direction; overridden per-camera by camera_directions
