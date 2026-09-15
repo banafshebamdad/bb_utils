@@ -17,6 +17,7 @@
 - [CLI usage](#cli-usage)
 - [Config format](#config-format)
 - [Output files](#output-files)
+- [Output validation](#output-validation)
 - [Mask utilities](#mask-utilities)
 - [Adding a new backend](#adding-a-new-backend)
 - [Dependencies](#dependencies)
@@ -605,6 +606,67 @@ import numpy as np
 data = np.load("dataset/incrowdvi/semantic_masks/train/frame_stem.npz", allow_pickle=False)
 mask = data["mask"]   # uint8 (H, W), values in {0, 1}
 # Soft mode instead stores: data["pedestrian_confidence"]  # float32 (H, W), values in [0, 1]
+```
+
+### Output validation
+
+Use `bb-validate-segmentation-output` after segmentation to verify both
+artifact completeness and the stored array contract against the source PNG
+images. The validator does not load a segmentation model and does not require
+PyTorch, SAM3, or a GPU.
+
+For soft pedestrian-confidence artifacts:
+
+```bash
+bb-validate-segmentation-output \
+  --images-dir dataset/incrowdvi/frames/val \
+  --output-dir dataset/incrowdvi/semantic_masks/val \
+  --sequence Orell_strait \
+  --output-mode soft_confidence
+```
+
+For legacy binary-mask artifacts:
+
+```bash
+bb-validate-segmentation-output \
+  --images-dir dataset/incrowdvi/frames/train \
+  --output-dir dataset/incrowdvi/semantic_masks/train \
+  --output-mode binary_mask
+```
+
+The validator checks:
+
+- one output artifact exists for every selected source image;
+- no unmatched output artifacts are present;
+- each NPZ contains exactly the key required by the selected output mode;
+- the stored array is two-dimensional and matches the source PNG dimensions;
+- soft-confidence arrays have exact `float32` dtype, contain only finite
+  values, and remain in `[0, 1]`;
+- binary masks have exact `uint8` dtype and contain only values in `{0, 1}`.
+
+A successful validation exits with status code `0`. Missing, extra, or invalid
+artifacts are reported and produce status code `1`. Invalid paths or command
+arguments produce status code `2`.
+
+CLI flags:
+
+| Flag | Required | Description |
+|---|---|---|
+| `--images-dir` | yes | Flat directory containing the source `*.png` images |
+| `--output-dir` | yes | Directory containing the generated `*.npz` artifacts |
+| `--output-mode` | yes | `soft_confidence` or `binary_mask` |
+| `--sequence` | no | Restrict validation to one exact `{sequence}_{L|R}_{timestamp}` sequence |
+| `--max-errors` | no | Maximum number of individual errors printed; default `20` |
+
+Example successful result:
+
+```text
+expected images : 4542
+artifacts found : 4542
+valid artifacts : 4542
+missing         : 0
+extra           : 0
+invalid         : 0
 ```
 
 ### Visual spot-check

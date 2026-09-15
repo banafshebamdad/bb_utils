@@ -41,7 +41,8 @@ This will install the package and all dependencies.
 | [InCrowd-VI Label Generator for Superpoint Training](#incrowd-vi-label-generator-for-superpoint-training) | Generate SuperPoint training labels from InCrowd-VI dataset |
 | [3D Observation Organizer](#3d-observation-organizer) | Organize 3D observation data into train/val/test directories |
 | [World-Coordinate Cache Builder](#world-coordinate-cache-builder) | Build per-sequence uid→xyz NPZ caches from Meta Aria MPS semidense point-cloud CSV files |
-| [Segmentation Runner](#segmentation-runner) | Run per-frame segmentation and write binary mask NPZ files for any image dataset |
+| [Segmentation Runner](#segmentation-runner) | Generate binary masks or SAM3 soft pedestrian-confidence maps for image datasets |
+| Segmentation Output Validator | Validate completeness, dtype, shape, keys, and value ranges of generated segmentation artifacts |
 | [Confidence Decay Rate Analyzer](#confidence-decay-rate-analyzer) | Analyze `inv_dist_std` distribution and compute optimal confidence decay parameters |
 
 ---
