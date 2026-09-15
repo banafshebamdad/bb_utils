@@ -190,6 +190,7 @@ def segment_frame(
     force: bool = False,
     preprocessing_cfg: Optional[dict] = None,
     rotate_mask_back: bool = True,
+    output_mode: str = "binary_mask",
 ) -> bool:
     """Segment one frame and write the mask NPZ.
 
@@ -207,13 +208,34 @@ def segment_frame(
                           applied, the generated mask is rotated back by the
                           inverse angle so it remains pixel-aligned with the
                           original source image.
+        output_mode: ``"binary_mask"`` (default) writes the existing ``mask``
+                 uint8 output. ``"soft_confidence"`` writes a float32
+                 ``pedestrian_confidence`` map from a supporting backend.
 
     Returns:
         True if the mask was written; False if skipped (already exists).
 
     Raises:
         FileNotFoundError: If *image_path* does not exist.
+        ValueError: If *output_mode* is invalid or soft output requests dilation.
+        RuntimeError: If soft output is requested from an unsupported backend.
     """
+    if output_mode not in ("binary_mask", "soft_confidence"):
+        raise ValueError(
+            "model.output_mode must be 'binary_mask' or 'soft_confidence', "
+            f"got '{output_mode}'."
+        )
+    if output_mode == "soft_confidence" and dilation_radius != 0:
+        raise ValueError("soft_confidence output requires mask_dilation_px: 0.")
+    if output_mode == "soft_confidence" and (
+        not getattr(backend, "supports_soft_confidence", False)
+        or not callable(getattr(backend, "segment_confidence", None))
+    ):
+        raise RuntimeError(
+            f"Backend '{type(backend).__name__}' does not support "
+            "soft_confidence output. Use a backend that explicitly supports it."
+        )
+
     if out_path.exists() and not force:
         return False
 
@@ -224,6 +246,7 @@ def segment_frame(
 
     # Load image — convert grayscale to 3-channel RGB
     image_rgb = _load_as_rgb(image_path)
+    source_shape = image_rgb.shape[:2]
 
     # Optionally rotate before segmentation
     rotation = _resolve_rotation(stem, preprocessing_cfg)
@@ -237,23 +260,43 @@ def segment_frame(
         )
         image_rgb = rotate_image(image_rgb, effective_rotation)
 
-    # Run segmentation
-    mask = backend.segment(image_rgb, target_classes)
+    if output_mode == "soft_confidence":
+        output = np.asarray(
+            backend.segment_confidence(image_rgb, target_classes), dtype=np.float32
+        )
+    else:
+        output = backend.segment(image_rgb, target_classes)
 
-    # Rotate mask back to original image orientation
+    # Rotate output back to original image orientation.
     if effective_rotation and rotate_mask_back:
-        from bb_utils.segmentation.utils import rotate_mask
-        logger.debug("Rotating mask for '%s' back by %d°.", stem, -effective_rotation)
-        mask = rotate_mask(mask, -effective_rotation)
+        if output_mode == "soft_confidence":
+            from bb_utils.segmentation.utils import rotate_confidence
+            output = rotate_confidence(output, -effective_rotation)
+        else:
+            from bb_utils.segmentation.utils import rotate_mask
+            output = rotate_mask(output, -effective_rotation)
+        logger.debug("Rotating output for '%s' back by %d°.", stem, -effective_rotation)
 
-    # Apply dilation (in original image coordinates)
+    # Apply binary-mask dilation in original image coordinates.
     if dilation_radius > 0:
         from bb_utils.segmentation.utils import dilate_mask
-        mask = dilate_mask(mask, dilation_radius)
+        output = dilate_mask(output, dilation_radius)
+
+    if output_mode == "soft_confidence":
+        if output.shape != source_shape:
+            raise RuntimeError(
+                f"Soft confidence output shape {output.shape} does not match "
+                f"source image shape {source_shape}."
+            )
+        if not np.isfinite(output).all() or np.any(output < 0) or np.any(output > 1):
+            raise RuntimeError("Soft confidence output must be finite and within [0, 1].")
 
     # Save
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out_path, mask=mask)
+    if output_mode == "soft_confidence":
+        np.savez_compressed(out_path, pedestrian_confidence=output.astype(np.float32))
+    else:
+        np.savez_compressed(out_path, mask=output)
     return True
 
 
@@ -300,6 +343,7 @@ def run_on_dir(
     sequence: Optional[str] = None,
     preprocessing_cfg: Optional[dict] = None,
     rotate_mask_back: bool = True,
+    output_mode: str = "binary_mask",
 ) -> Dict:
     """Segment PNG frames in *images_dir* and write mask NPZ files to *output_dir*.
 
@@ -318,6 +362,7 @@ def run_on_dir(
                           rotation resolution.
         rotate_mask_back: When ``True`` (default), the mask is rotated back to
                           the original image orientation after segmentation.
+        output_mode: Output mode passed to :func:`segment_frame`.
 
     Returns:
         Summary dict with ``"total"``, ``"written"``, ``"skipped"``, ``"failed"``.
@@ -362,6 +407,7 @@ def run_on_dir(
                 force=force,
                 preprocessing_cfg=preprocessing_cfg,
                 rotate_mask_back=rotate_mask_back,
+                output_mode=output_mode,
             )
             if written:
                 n_written += 1
@@ -436,6 +482,7 @@ def main() -> None:
         config = yaml.safe_load(f)
 
     model_cfg = config.get("model", {})
+    output_mode = model_cfg.get("output_mode", "binary_mask")
 
     pre_cfg = config.get("preprocessing") or {}
     rotate_mask_back = pre_cfg.get("rotate_mask_back", True)
@@ -448,6 +495,7 @@ def main() -> None:
         logger.info("  target_classes     : %s", model_cfg.get("target_classes"))
         logger.info("  confidence_threshold: %s", model_cfg.get("confidence_threshold"))
         logger.info("  mask_dilation_px   : %s", model_cfg.get("mask_dilation_px"))
+        logger.info("  output_mode        : %s", output_mode)
         logger.info("  images_dir         : %s", args.images_dir)
         logger.info("  output_dir         : %s", args.output_dir)
         logger.info("  sequence filter    : %s", args.sequence or "(all frames)")
@@ -496,6 +544,7 @@ def main() -> None:
         sequence=args.sequence,
         preprocessing_cfg=pre_cfg or None,
         rotate_mask_back=rotate_mask_back,
+        output_mode=output_mode,
     )
     elapsed = time.time() - t0
     logger.info(

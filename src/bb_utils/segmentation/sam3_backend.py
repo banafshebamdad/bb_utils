@@ -109,7 +109,7 @@ be present in the environment before using this backend.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 import numpy as np
 
@@ -226,6 +226,8 @@ class Sam3Backend(SegmentationBackend):
                               user values take precedence on collision.
     """
 
+    supports_soft_confidence = True
+
     def __init__(
         self,
         version: str,
@@ -330,61 +332,9 @@ class Sam3Backend(SegmentationBackend):
             uint8 ndarray of shape (H, W) with values in {0, 1}.
             1 = detected target-class pixel, 0 = background.
         """
-        from PIL import Image as PILImage
-
         H, W = image.shape[:2]
         output_mask = np.zeros((H, W), dtype=np.uint8)
-
-        # ------------------------------------------------------------------
-        # Resolve text prompts; deduplicate while preserving first occurrence.
-        # ------------------------------------------------------------------
-        seen_prompts: set = set()
-        prompts: List[str] = []
-        for cls_id in target_classes:
-            prompt = self._class_to_text.get(cls_id)
-            if prompt is None:
-                logger.warning(
-                    "Sam3Backend: no text prompt mapped to class ID %d.  "
-                    "Add an entry to 'class_to_text' in the config.",
-                    cls_id,
-                )
-                continue
-            if prompt not in seen_prompts:
-                prompts.append(prompt)
-                seen_prompts.add(prompt)
-
-        if not prompts:
-            return output_mask
-
-        # ------------------------------------------------------------------
-        # Precompute visual backbone features once for all prompts.
-        # set_image returns a state dict with ``backbone_out`` (image-only).
-        # SAM 3 weights are bfloat16; autocast ensures a consistent dtype
-        # across all layers regardless of strict=False loading gaps.
-        # ------------------------------------------------------------------
-        import torch
-        pil_image = PILImage.fromarray(image)
-        with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
-            base_state = self._processor.set_image(pil_image)
-
-        # ------------------------------------------------------------------
-        # Run the detector head independently for each text prompt.
-        # set_text_prompt updates ``state["backbone_out"]`` in-place with
-        # text features, so we shallow-copy the backbone_out dict before
-        # each call to avoid contaminating subsequent prompts.
-        # ------------------------------------------------------------------
-        for prompt in prompts:
-            # Shallow-copy the top-level state dict and the backbone_out
-            # sub-dict so that text-feature updates stay local to this prompt.
-            prompt_state: dict = dict(base_state)
-            prompt_state["backbone_out"] = dict(base_state["backbone_out"])
-
-            with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
-                result_state = self._processor.set_text_prompt(
-                    prompt=prompt,
-                    state=prompt_state,
-                )
-
+        for prompt, result_state in self._infer_prompt_states(image, target_classes):
             masks_tensor = result_state.get("masks")
             if masks_tensor is None or masks_tensor.numel() == 0:
                 logger.debug(
@@ -404,3 +354,109 @@ class Sam3Backend(SegmentationBackend):
             )
 
         return output_mask
+
+    def segment_confidence(
+        self,
+        image: np.ndarray,
+        target_classes: List[int],
+    ) -> np.ndarray:
+        """Return a pixelwise SAM3 detection-weighted soft confidence map.
+
+        ``Sam3Processor`` returns ``masks_logits`` already resized to the
+        input image resolution and passed through sigmoid.  The name is kept
+        by SAM3 for API compatibility, but these values are probabilities and
+        must not be passed through sigmoid again.
+        """
+        H, W = image.shape[:2]
+        pedestrian_confidence = np.zeros((H, W), dtype=np.float32)
+
+        for prompt, result_state in self._infer_prompt_states(image, target_classes):
+            scores = result_state.get("scores")
+            masks_logits = result_state.get("masks_logits")
+            if scores is None or masks_logits is None:
+                raise RuntimeError(
+                    "SAM 3 soft confidence output requires result_state['scores'] "
+                    "and result_state['masks_logits']."
+                )
+            if scores.numel() == 0 or masks_logits.numel() == 0:
+                logger.debug("SAM 3 returned no soft masks for prompt '%s'.", prompt)
+                continue
+
+            import torch
+
+            scores = scores.to(torch.float32).reshape(-1)
+            masks_logits = masks_logits.to(torch.float32)
+            if masks_logits.ndim != 4 or masks_logits.shape[1] != 1:
+                raise RuntimeError(
+                    "SAM 3 returned masks_logits with shape "
+                    f"{tuple(masks_logits.shape)}; expected (N, 1, H, W)."
+                )
+            if scores.shape[0] != masks_logits.shape[0]:
+                raise RuntimeError(
+                    "SAM 3 returned inconsistent scores and masks_logits instance counts."
+                )
+            if tuple(masks_logits.shape[-2:]) != (H, W):
+                raise RuntimeError(
+                    "SAM 3 returned masks_logits at "
+                    f"{tuple(masks_logits.shape[-2:])}, expected input shape {(H, W)}."
+                )
+            if not torch.isfinite(scores).all().item() or not torch.isfinite(masks_logits).all().item():
+                raise RuntimeError("SAM 3 returned non-finite soft confidence values.")
+            if (scores < 0).any().item() or (scores > 1).any().item():
+                raise RuntimeError("SAM 3 returned detection scores outside [0, 1].")
+            if (masks_logits < 0).any().item() or (masks_logits > 1).any().item():
+                raise RuntimeError(
+                    "SAM 3 masks_logits must already be probabilities in [0, 1]; "
+                    "refusing to apply a second sigmoid."
+                )
+
+            weighted_masks = scores[:, None, None] * masks_logits[:, 0]
+            prompt_confidence = weighted_masks.max(dim=0).values.clamp(0.0, 1.0)
+            pedestrian_confidence = np.maximum(
+                pedestrian_confidence,
+                prompt_confidence.cpu().numpy().astype(np.float32, copy=False),
+            )
+
+        return pedestrian_confidence
+
+    def _infer_prompt_states(
+        self,
+        image: np.ndarray,
+        target_classes: List[int],
+    ) -> Iterator[tuple[str, dict]]:
+        """Yield a SAM3 result state for each unique prompt using one backbone pass."""
+        from PIL import Image as PILImage
+        import torch
+
+        seen_prompts: set = set()
+        prompts: List[str] = []
+        for cls_id in target_classes:
+            prompt = self._class_to_text.get(cls_id)
+            if prompt is None:
+                logger.warning(
+                    "Sam3Backend: no text prompt mapped to class ID %d.  "
+                    "Add an entry to 'class_to_text' in the config.",
+                    cls_id,
+                )
+                continue
+            if prompt not in seen_prompts:
+                prompts.append(prompt)
+                seen_prompts.add(prompt)
+
+        if not prompts:
+            return
+
+        pil_image = PILImage.fromarray(image)
+        with torch.inference_mode():
+            with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
+                base_state = self._processor.set_image(pil_image)
+
+            for prompt in prompts:
+                prompt_state: dict = dict(base_state)
+                prompt_state["backbone_out"] = dict(base_state["backbone_out"])
+                with torch.autocast(self._autocast_device, dtype=torch.bfloat16):
+                    result_state = self._processor.set_text_prompt(
+                        prompt=prompt,
+                        state=prompt_state,
+                    )
+                yield prompt, result_state

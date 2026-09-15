@@ -63,6 +63,8 @@ class SegmentationBackend(ABC):
     backend-specific and accepted via the constructor.
     """
 
+    supports_soft_confidence = False
+
     @abstractmethod
     def segment(
         self,

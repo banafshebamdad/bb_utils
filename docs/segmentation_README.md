@@ -1,6 +1,6 @@
 # Segmentation Backend
 
-`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on images, normalising each model's output into a single binary mask format that callers (e.g. `bb-run-segmentation`) can consume without knowing which model produced it.
+`bb_utils.segmentation` provides a common interface for running instance and semantic segmentation models on images. The default output is a binary mask; SAM3 additionally supports an explicit pedestrian-confidence output mode in `bb-run-segmentation`.
 
 ---
 
@@ -350,6 +350,21 @@ class_to_text:
 3. Accumulate masks from all prompts via element-wise maximum.
 4. Return `uint8 (H, W)` mask with values in `{0, 1}`.
 
+**Soft pedestrian-confidence output** is available only with `backend: "sam3"`
+and `output_mode: "soft_confidence"`. For each retained instance, SAM3 uses
+the detection score $r_i = \text{result_state["scores"][i]}$ and the already
+sigmoid-transformed, original-resolution probability map
+$M_i = \text{result_state["masks_logits"][i, 0]}$. The output is the
+pixelwise maximum $Q_t^{\mathrm{ped}}(u,v) = \max_i[r_i M_i(u,v)]$.
+`masks_logits` is validated as finite and in `[0, 1]`; it is not passed
+through sigmoid a second time. Multiple person instances use a maximum, not a
+sum, mean, or binary union.
+
+No retained person instances produces an all-zero `float32 (H, W)` confidence
+map. This is a valid semantic result. It is distinct from a missing output file
+or a preprocessing failure, which the runner logs as a failed frame and does
+not write as a successful result.
+
 **Authentication: required before first use:**
 
 SAM 3 checkpoints are gated on HuggingFace and require explicit access:
@@ -383,6 +398,7 @@ automatically to `~/.cache/huggingface/hub/` on first use.
 | `checkpoint_path` | str | no | `null` | Absolute path to a local `.pt` checkpoint.  `null` = auto-download from HuggingFace |
 | `device` | str | no | `"cuda"` | `"cuda"`, `"cuda:0"`, `"cpu"` |
 | `confidence_threshold` | float | no | `0.5` | Minimum detection score (0, 1) |
+| `output_mode` | str | no | `"binary_mask"` | `"binary_mask"` preserves the `mask` output; `"soft_confidence"` writes `pedestrian_confidence` and requires `mask_dilation_px: 0` |
 | `class_to_text` | dict | no | `{}` | Maps integer class IDs to text prompts.  Merged on top of the built-in 80-class COCO default; user values take precedence |
 
 `iou_threshold`, `mask_threshold`, `segmentation_mode`, and `backbone` are not used by this backend.
@@ -395,16 +411,12 @@ model:
   version:              "sam3"
   checkpoint_path:      null          # null = auto-download (requires HF auth)
   device:               "cuda"
-  confidence_threshold: 0.5
+  confidence_threshold: 0.35
+  output_mode:          "soft_confidence"
   class_to_text:
     0: "person"
-```
-
-And in the pipeline config:
-
-```yaml
-segmentation:
-  target_classes: [0]   # COCO class 0 = person
+  target_classes:       [0]           # COCO class 0 = person
+  mask_dilation_px:     0             # required for soft_confidence
 ```
 
 **Installation:**
@@ -574,23 +586,25 @@ The runner writes one compressed NPZ per source frame:
 
 Each file contains a single array:
 
-| Key | dtype | Shape | Description |
-|---|---|---|---|
-| `mask` | `uint8` | `(H, W)` | `1` = detected pedestrian pixel; `0` = static background |
+| Output mode | Key | dtype | Shape | Description |
+|---|---|---|---|---|
+| `binary_mask` | `mask` | `uint8` | `(H, W)` | `1` = detected pedestrian pixel; `0` = static background |
+| `soft_confidence` | `pedestrian_confidence` | `float32` | `(H, W)` | Detection-weighted pedestrian confidence in `[0, 1]` |
 
 When no `preprocessing:` section is present (or `pre_rotation_deg` is `null`), the mask is in the same pixel space as the source image (no spatial transformation applied).
 
-When `preprocessing.rotate_mask_back: true` (default), the same guarantee holds even when pre-rotation is active — the mask is rotated back after segmentation and `mask[i, j]` corresponds to `image[i, j]`.
+When `preprocessing.rotate_mask_back: true` (default), the same guarantee holds even when pre-rotation is active: the output is rotated back after segmentation and its pixel `(i, j)` corresponds to source-image pixel `(i, j)`. This applies to both `mask` and `pedestrian_confidence`.
 
 When `preprocessing.rotate_mask_back: false`, the mask is saved in the rotated orientation; its shape will be `(W, H)` instead of `(H, W)` for 90°/270° rotations.
 
-Loading a mask:
+Loading an output:
 
 ```python
 import numpy as np
 
 data = np.load("dataset/incrowdvi/semantic_masks/train/frame_stem.npz", allow_pickle=False)
 mask = data["mask"]   # uint8 (H, W), values in {0, 1}
+# Soft mode instead stores: data["pedestrian_confidence"]  # float32 (H, W), values in [0, 1]
 ```
 
 ### Visual spot-check

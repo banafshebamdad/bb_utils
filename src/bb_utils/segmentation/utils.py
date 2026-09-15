@@ -26,6 +26,8 @@ rotate_image
 rotate_mask
     Rotate a binary mask clockwise by a multiple of 90 degrees.  Negative
     degrees are accepted and are used to invert a prior rotation.
+rotate_confidence
+    Rotate a float32 confidence map without changing its values.
 """
 
 from typing import List, Tuple
@@ -194,3 +196,15 @@ def rotate_mask(mask: np.ndarray, degrees: int) -> np.ndarray:
     if k == 0:
         return mask.astype(np.uint8)
     return np.rot90(mask, k=k).astype(np.uint8)
+
+
+def rotate_confidence(confidence: np.ndarray, degrees: int) -> np.ndarray:
+    """Rotate a float32 confidence map clockwise by a multiple of 90 degrees."""
+    if degrees % 90 != 0:
+        raise ValueError(
+            f"rotate_confidence: degrees must be a multiple of 90, got {degrees}."
+        )
+    k = -(degrees // 90) % 4
+    if k == 0:
+        return confidence.astype(np.float32)
+    return np.rot90(confidence, k=k).astype(np.float32)
