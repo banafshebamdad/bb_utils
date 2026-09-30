@@ -12,6 +12,11 @@ Samples a small number of frames from a flat mask directory, overlays each
 binary mask on its source image as a semi-transparent red highlight, and
 writes the blended PNGs to an output directory.
 
+Soft-confidence artifacts can also be inspected. For each selected frame, the
+script saves the original RGB image and an RGB overlay colored by the full
+``pedestrian_confidence`` range [0, 1]. Soft-confidence maps must already be
+aligned with the source image; they are never rotated or resized.
+
 Frames are drawn from four density buckets so both empty scenes and heavily
 masked frames are always represented:
   zero   — mask density == 0   (no pedestrians detected)
@@ -42,6 +47,14 @@ Usage
         --images-dir dataset/incrowdvi/frames/train \
         --output-dir logs/mask_spotcheck_all \
         --all
+
+    # Inspect exact soft-confidence artifacts without directory sampling
+    python evaluation/segmentation_spotcheck.py \
+        --masks-dir dataset/incrowdvi/semantic_confidence/train \
+        --images-dir dataset/incrowdvi/frames/train \
+        --output-dir logs/confidence_spotcheck \
+        --output-mode soft_confidence \
+        --stems Hrsaal1B01_to_restroom_L_120528236
 """
 
 import argparse
@@ -136,6 +149,27 @@ def _overlay_mask(image_rgb: np.ndarray, mask: np.ndarray, alpha: float) -> np.n
     return np.clip(result, 0, 255).astype(np.uint8)
 
 
+def _confidence_colors(confidence: np.ndarray) -> np.ndarray:
+    """Map a [0, 1] confidence array to a fixed blue-to-red RGB scale."""
+    value = np.clip(confidence.astype(np.float32), 0.0, 1.0)
+    colors = np.empty((*value.shape, 3), dtype=np.float32)
+    colors[..., 0] = 255.0 * value
+    colors[..., 1] = 255.0 * (1.0 - np.abs(2.0 * value - 1.0))
+    colors[..., 2] = 255.0 * (1.0 - value)
+    return colors
+
+
+def _overlay_confidence(
+    image_rgb: np.ndarray,
+    confidence: np.ndarray,
+    alpha: float,
+) -> np.ndarray:
+    """Blend a fixed [0, 1] confidence color scale over an RGB image."""
+    colors = _confidence_colors(confidence)
+    blended = image_rgb.astype(np.float32) * (1.0 - alpha) + colors * alpha
+    return np.clip(blended, 0, 255).astype(np.uint8)
+
+
 # ---------------------------------------------------------------------------
 # Sampling
 # ---------------------------------------------------------------------------
@@ -226,32 +260,57 @@ def run_spotcheck(
     seed: int,
     alpha: float,
     all_frames: bool = False,
+    output_mode: str = "binary_mask",
+    stems: list[str] | None = None,
 ) -> None:
-    mask_files = sorted(masks_dir.glob("*.npz"))
-    if not mask_files:
-        logger.error("No NPZ files found in %s", masks_dir)
-        return
-
-    # Read the preprocessing config that was copied into the output directory
-    # by bb-run-segmentation so we can reproduce the rotation that was applied.
-    pre_cfg = _load_preprocessing_cfg(masks_dir)
-    rotate_mask_back = pre_cfg.get("rotate_mask_back", True)
-    if pre_cfg:
-        logger.info(
-            "Preprocessing config found in masks_dir — rotate_mask_back: %s",
-            rotate_mask_back,
-        )
-        if not rotate_mask_back:
-            logger.info(
-                "Masks are in the rotated frame; source images will be "
-                "rotated forward before overlaying."
-            )
-
-    if all_frames:
-        logger.info("--all: processing all %d mask files", len(mask_files))
-        selected = [(f, float(np.load(f)["mask"].mean())) for f in mask_files]
+    if stems:
+        mask_files = [masks_dir / f"{stem}.npz" for stem in stems]
+        missing = [path.name for path in mask_files if not path.exists()]
+        if missing:
+            logger.error("Requested artifact files not found in %s: %s", masks_dir, ", ".join(missing))
+            return
+        selected = [(path, None) for path in mask_files]
+        logger.info("Processing %d exact frame stems", len(selected))
     else:
-        selected = _sample_frames(mask_files, n_frames, seed)
+        mask_files = sorted(masks_dir.glob("*.npz"))
+        if not mask_files:
+            logger.error("No NPZ files found in %s", masks_dir)
+            return
+
+        if all_frames:
+            logger.info("--all: processing all %d mask files", len(mask_files))
+            if output_mode == "binary_mask":
+                selected = [
+                    (path, float(np.load(path)["mask"].mean()))
+                    for path in mask_files
+                ]
+            else:
+                selected = [(path, None) for path in mask_files]
+        elif output_mode == "soft_confidence":
+            rng = np.random.default_rng(seed)
+            count = min(n_frames, len(mask_files))
+            indices = rng.choice(len(mask_files), size=count, replace=False)
+            selected = [(mask_files[index], None) for index in indices]
+        else:
+            selected = _sample_frames(mask_files, n_frames, seed)
+
+    pre_cfg = {}
+    rotate_mask_back = True
+    if output_mode == "binary_mask":
+        # Read the config copied by bb-run-segmentation so binary masks saved in
+        # the rotated frame can retain their existing visualization behavior.
+        pre_cfg = _load_preprocessing_cfg(masks_dir)
+        rotate_mask_back = pre_cfg.get("rotate_mask_back", True)
+        if pre_cfg:
+            logger.info(
+                "Preprocessing config found in masks_dir — rotate_mask_back: %s",
+                rotate_mask_back,
+            )
+            if not rotate_mask_back:
+                logger.info(
+                    "Masks are in the rotated frame; source images will be "
+                    "rotated forward before overlaying."
+                )
     output_dir.mkdir(parents=True, exist_ok=True)
 
     n_saved = n_skipped = 0
@@ -266,9 +325,40 @@ def run_spotcheck(
 
         try:
             image_rgb = _load_rgb(image_path)
-            mask = np.load(mask_path)["mask"]
+            artifact = np.load(mask_path)
         except Exception as exc:
             logger.error("Failed to load %s: %s", stem, exc)
+            n_skipped += 1
+            continue
+
+        if output_mode == "soft_confidence":
+            try:
+                confidence = artifact["pedestrian_confidence"]
+            except KeyError:
+                logger.error("Missing pedestrian_confidence in %s", mask_path.name)
+                n_skipped += 1
+                continue
+
+            if confidence.shape != image_rgb.shape[:2]:
+                logger.error(
+                    "Shape mismatch for %s: confidence %s vs image %s — skipping",
+                    stem, confidence.shape, image_rgb.shape[:2],
+                )
+                n_skipped += 1
+                continue
+
+            _save_rgb(image_rgb, output_dir / f"{stem}_original.png")
+            _save_rgb(
+                _overlay_confidence(image_rgb, confidence, alpha=alpha),
+                output_dir / f"{stem}_confidence.png",
+            )
+            n_saved += 1
+            continue
+
+        try:
+            mask = artifact["mask"]
+        except KeyError:
+            logger.error("Missing mask in %s", mask_path.name)
             n_skipped += 1
             continue
 
@@ -301,8 +391,9 @@ def run_spotcheck(
                 continue
 
         overlay = _overlay_mask(image_rgb, mask, alpha=alpha)
-        label = _bucket_label(density)
-        out_name = f"{label}_d{density:.3f}_{stem}.png"
+        mask_density = float(mask.mean()) if density is None else density
+        label = _bucket_label(mask_density)
+        out_name = f"{label}_d{mask_density:.3f}_{stem}.png"
         _save_rgb(overlay, output_dir / out_name)
         n_saved += 1
 
@@ -331,7 +422,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--masks-dir", type=Path, required=True,
-        help="Directory of mask NPZ files produced by bb-run-segmentation.",
+        help="Directory of segmentation NPZ artifacts produced by bb-run-segmentation.",
     )
     parser.add_argument(
         "--images-dir", type=Path, required=True,
@@ -357,6 +448,15 @@ def main() -> None:
         "--all", dest="all_frames", action="store_true",
         help="Process every mask in --masks-dir instead of sampling.",
     )
+    parser.add_argument(
+        "--output-mode", choices=("binary_mask", "soft_confidence"),
+        default="binary_mask",
+        help="Artifact field to visualize (default: binary_mask).",
+    )
+    parser.add_argument(
+        "--stems", nargs="+", metavar="STEM",
+        help="Exact frame stems to process directly, without scanning or sampling.",
+    )
     args = parser.parse_args()
 
     for path, flag in [(args.masks_dir, "--masks-dir"), (args.images_dir, "--images-dir")]:
@@ -372,6 +472,8 @@ def main() -> None:
         seed=args.seed,
         alpha=args.alpha,
         all_frames=args.all_frames,
+        output_mode=args.output_mode,
+        stems=args.stems,
     )
 
 
